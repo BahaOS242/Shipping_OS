@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { InvoiceStatusBadge } from "@/components/invoices/InvoiceStatusBadge";
+import { fmtUsd } from "@/lib/invoices";
 import { ShoppingAddressCard } from "@/components/account/ShoppingAddressCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { DemoBadge } from "@/components/ui/DemoBadge";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getCustomer, getInvoices, getLocation, getNotifications, getQuotes, getShoppingAddress } from "@/lib/api/link-api";
+import { getCustomerInvoices } from "@/lib/api/invoices";
+import { getCustomer, getLocation, getNotifications, getQuotes, getShoppingAddress } from "@/lib/api/link-api";
 import { getSessionCustomerId } from "@/lib/auth";
 import { ISLANDS, fmtLbs, fmtMoney } from "@/lib/pricing";
 
@@ -19,7 +23,7 @@ export default async function AccountPage() {
     getShoppingAddress(id),
     getNotifications(id),
     getQuotes(id),
-    getInvoices(id),
+    getCustomerInvoices(id),
   ]);
   const pickup = await getLocation(c.preferredPickupLocationId);
 
@@ -78,20 +82,27 @@ export default async function AccountPage() {
           <p className="mt-2 text-sm text-ink-mute">Demo estimates, not official prices.</p>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="text-xl font-extrabold">Bills</h2>
+        <Card className="p-6" id="bills">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-xl font-extrabold">Your bills</h2>
+            {(() => {
+              const owed = invoices.reduce((sum, i) => sum + i.balance, 0);
+              return owed > 0 ? <span className="font-bold text-coral-700">{fmtUsd(owed)} to pay</span> : <span className="font-bold text-emerald-800">✓ All paid up</span>;
+            })()}
+          </div>
           <ul className="mt-3 divide-y divide-sand-200">
             {invoices.map((inv) => (
-              <li key={inv.id} className="flex items-center justify-between gap-4 py-3 text-lg">
-                <span>
-                  {inv.id.toUpperCase()} · {day(inv.issuedAt)}
-                </span>
-                <span className="flex items-center gap-3">
-                  <strong>{fmtMoney(inv.total)}</strong>
-                  <span className={`rounded-full px-3 py-0.5 text-sm font-bold ${inv.status === "paid" ? "bg-emerald-50 text-emerald-800" : "bg-sun-50 text-sun-700"}`}>
-                    {inv.status === "paid" ? "✓ Paid" : "To pay"}
+              <li key={inv.id}>
+                <Link href={`/account/bills/${inv.id}`} className="flex min-h-14 items-center justify-between gap-4 py-3 text-lg hover:bg-sand-50">
+                  <span>
+                    <span className="block font-bold">{inv.number}</span>
+                    <span className="text-base text-ink-soft">{inv.issuedAt ? day(inv.issuedAt) : ""}</span>
                   </span>
-                </span>
+                  <span className="flex items-center gap-3">
+                    <strong className="tabular-nums">{fmtUsd(inv.balance > 0 ? inv.balance : inv.total)}</strong>
+                    <InvoiceStatusBadge status={inv.status} />
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

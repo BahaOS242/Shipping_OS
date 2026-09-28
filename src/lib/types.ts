@@ -172,13 +172,61 @@ export type Quote = {
   createdAt: ISODate;
 };
 
+/** Lifecycle is stored. Payment state (unpaid / part paid / paid / overdue) is derived. */
+export type InvoiceLifecycle = "draft" | "issued" | "void";
+
+export type InvoiceLineKind =
+  | "shipping"
+  | "island_delivery"
+  | "handling"
+  | "storage"
+  | "home_delivery"
+  | "customs_duty"
+  | "vat"
+  | "other";
+
+export type InvoiceLine = {
+  id: ID;
+  kind: InvoiceLineKind;
+  description: string;
+  packageId?: ID;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  /** VAT applies to The Link's service charges, not to duty collected for the government. */
+  taxable: boolean;
+};
+
+export type PaymentMethod = "cash" | "card" | "bank_transfer" | "online";
+
+export type Payment = {
+  id: ID;
+  amount: number;
+  method: PaymentMethod;
+  at: ISODate;
+  reference?: string;
+  recordedBy: string;
+};
+
 export type Invoice = {
   id: ID;
+  /** Human-facing sequential number, e.g. INV-2026-00142. */
+  number: string;
   customerId: ID;
   packageIds: ID[];
+  shipmentId?: ID;
+  destination: IslandId;
+  lifecycle: InvoiceLifecycle;
+  lines: InvoiceLine[];
+  subtotal: number;
+  vat: number;
   total: number;
-  status: "unpaid" | "paid";
-  issuedAt: ISODate;
+  payments: Payment[];
+  issuedAt?: ISODate;
+  dueAt?: ISODate;
+  createdAt: ISODate;
+  voidReason?: string;
+  notes?: string;
   isDemo: true;
 };
 

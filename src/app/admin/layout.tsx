@@ -17,6 +17,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/admin" className="hidden rounded-xl px-3 py-2 text-ink-soft hover:bg-sand-100 sm:block">
               Dashboard
             </Link>
+            <Link href="/admin/invoices" className="rounded-xl px-3 py-2 text-ink-soft hover:bg-sand-100">
+              Invoices
+            </Link>
             <Link href="/" className="whitespace-nowrap rounded-xl px-3 py-2 text-sea-700 hover:bg-sea-50">
               Customer site ↗
             </Link>
