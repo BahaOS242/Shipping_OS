@@ -99,6 +99,7 @@ export const OPS_NAV: { href: string; label: string; icon: string; roles: Role[]
 ];
 
 export function canSeeOpsPath(role: Role, pathname: string) {
+  if (pathname.startsWith("/admin/search")) return role !== "customer"; // global search is for every staff role
   const item = OPS_NAV.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
   return !item || item.roles.includes(role);
 }

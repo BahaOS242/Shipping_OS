@@ -18,3 +18,5 @@ export * from "./storage";
 export * from "./support";
 export * from "./timeline";
 export * from "./quotes";
+export * from "./customerActions";
+export * from "./warehouse";

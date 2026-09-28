@@ -223,3 +223,9 @@ export function reconciliationRows() {
     suggestion: r.status === "unmatched_payment" ? suggestBillForPayment(s.payments.find((p) => p.id === r.paymentIds[0])!, s.bills, s.payments)?.id : undefined,
   }));
 }
+
+export const listPayments = () => [...db().payments].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+export const shipmentPackagesById = (shipmentId?: ID) => {
+  const sh = db().shipments.find((s) => s.id === shipmentId);
+  return sh ? db().packages.filter((p) => sh.packageIds.includes(p.id)) : [];
+};

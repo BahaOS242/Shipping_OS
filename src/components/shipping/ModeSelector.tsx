@@ -1,14 +1,14 @@
 "use client";
 
-import { DEMO_SHIPPING_RULES } from "@/lib/pricing";
-import type { ShippingMode } from "@/lib/types";
+import { RATE_CARD } from "@/domain/rates";
+import type { ServiceLevel } from "@/domain/types";
 import { ChoiceButton } from "./ChoiceButton";
 
-export function ModeSelector({ value, onChange }: { value?: ShippingMode; onChange: (m: ShippingMode) => void }) {
+export function ModeSelector({ value, onChange }: { value?: ServiceLevel; onChange: (m: ServiceLevel) => void }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <ChoiceButton icon="✈️" label="Faster" hint={`By plane · about ${DEMO_SHIPPING_RULES.air.days}`} selected={value === "air"} onClick={() => onChange("air")} />
-      <ChoiceButton icon="🚢" label="Bigger / slower" hint={`By boat · about ${DEMO_SHIPPING_RULES.sea.days}`} selected={value === "sea"} onClick={() => onChange("sea")} />
+      <ChoiceButton icon="✈️" label="Faster" hint={`Air · about ${RATE_CARD.air.transit}`} selected={value === "air"} onClick={() => onChange("air")} />
+      <ChoiceButton icon="🚢" label="Bigger / slower" hint={`Ocean · about ${RATE_CARD.ocean.transit}`} selected={value === "ocean"} onClick={() => onChange("ocean")} />
     </div>
   );
 }

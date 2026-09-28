@@ -10,7 +10,6 @@
  *  - Server (API routes): an in-memory copy of the seed per instance.
  *  - PRODUCTION: replace with a PostgreSQL-backed repository behind the same services.
  */
-import { useSyncExternalStore } from "react";
 import type {
   AuditEvent,
   Bill,
@@ -75,7 +74,6 @@ export function registerSeeder(fn: Seeder) {
 
 let state: DbState | null = null;
 let version = 0;
-let hydrated = false;
 const listeners = new Set<() => void>();
 const isBrowser = typeof window !== "undefined";
 
@@ -103,26 +101,27 @@ function load(): DbState {
 export function db(): DbState {
   if (!state) {
     state = load();
-    if (isBrowser) {
-      hydrated = true;
-      persist();
-    }
+    if (isBrowser) persist();
   }
   return state;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+function flush() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = null;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* quota / private mode — keep in memory */
+  }
+}
 function persist() {
   if (!isBrowser) return;
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      /* quota / private mode — keep in memory */
-    }
-  }, 120);
+  saveTimer = setTimeout(flush, 120);
 }
+if (isBrowser) window.addEventListener("pagehide", () => saveTimer && flush());
 
 let depth = 0;
 /** Every write goes through here. Nested calls commit once. */
@@ -167,7 +166,8 @@ export function withState<T>(s: DbState, fn: () => T): T {
   }
 }
 
-function subscribe(l: () => void) {
+/** For the useLive() hook (client). */
+export function subscribeStore(l: () => void) {
   listeners.add(l);
   const onStorage = (e: StorageEvent) => {
     if (e.key !== STORAGE_KEY || !e.newValue) return;
@@ -188,18 +188,8 @@ function subscribe(l: () => void) {
   };
 }
 
-/**
- * Subscribe a component to the store. Returns false during server render and
- * the first client pass (show a loading state), true once data is live.
- */
-export function useLive(): boolean {
-  const v = useSyncExternalStore(
-    subscribe,
-    () => {
-      db();
-      return version;
-    },
-    () => -1,
-  );
-  return v >= 0 && (hydrated || !isBrowser);
+/** Snapshot for useSyncExternalStore. Initializes the store on first read. */
+export function storeVersion() {
+  db();
+  return version;
 }

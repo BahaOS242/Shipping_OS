@@ -118,7 +118,7 @@ async function main() {
     svc.dispatchDelivery(WH, d.id);
     assert.ok(svc.listNotifications({ customerId: trevor.id }).some((x) => /out for delivery/.test(x.body)));
   });
-  await step("Customer receives the package", () => svc.completeDelivery(WH, d.id, { receivedBy: "Trevor Armstrong" }));
+  await step("Customer receives the package", () => { svc.completeDelivery(WH, d.id, { receivedBy: "Trevor Armstrong" }); });
   await step("Delivery is marked complete (with proof)", () => {
     assert.equal(svc.getDelivery(d.id).status, "delivered");
     assert.ok(svc.getDelivery(d.id).proof?.signature);

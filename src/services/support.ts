@@ -134,3 +134,5 @@ export function clearConversation(customerId: ID, channel: Conversation["channel
     s.conversations = s.conversations.filter((c) => !(c.customerId === customerId && c.channel === channel));
   });
 }
+
+export const listStaffNames = () => db().staff.map((s) => s.name);

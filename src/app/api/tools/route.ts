@@ -1,6 +1,4 @@
-import { toolManifest } from "@/lib/tools/registry";
+import { toolManifest } from "@/ai/tools";
+import "../_demo";
 
-/** Lists the controlled tools the AI layer is allowed to use. */
-export async function GET() {
-  return Response.json({ mode: "demo", tools: toolManifest() });
-}
+export const GET = () => Response.json({ mode: "demo", tools: toolManifest() });

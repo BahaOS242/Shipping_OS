@@ -15,7 +15,7 @@ import { SYSTEM, emit } from "@/events/bus";
 import { BusinessError, byId, customerName, round2 } from "./_shared";
 import { billShipment } from "./billing";
 import { getCustomer } from "./customers";
-import { isOpen, onExceptionResolved, raiseException } from "./exceptions";
+import { autoResolve, isOpen, onExceptionResolved, raiseException } from "./exceptions";
 import { declaredValueUsd, findPurchaseInvoice, onInvoiceLinked } from "./invoiceEngine";
 import { getDestination, getLocation, nextVoyage, warehouse } from "./locations";
 
@@ -258,6 +258,7 @@ export function arriveShipment(actor: Actor, id: ID) {
     for (const p of shipmentPackages(sh)) p.status = "arrived";
     emit("SHIPMENT_ARRIVED", { actor, refs: { customerId: sh.customerId, shipmentId: sh.id }, summary: `${sh.id} arrived in ${getDestination(sh.destinationId).name}`, customerSummary: `Your shipment arrived in The Bahamas 🇧🇸` });
     arrivalHooks.forEach((h) => h(sh, actor));
+    autoResolve("SHIPMENT_DELAYED", { shipmentId: sh.id }, "Arrived");
     return sh;
   });
 }

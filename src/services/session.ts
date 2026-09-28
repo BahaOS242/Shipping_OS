@@ -23,3 +23,4 @@ export function resetDemoData() {
   resetDemo();
   runSystemChecks();
 }
+export const DEMO_CUSTOMER_ID = "cus_trevor";

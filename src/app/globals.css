@@ -104,3 +104,10 @@ body {
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Grid items may shrink below their content width (prevents horizontal scroll on phones). */
+@layer base {
+  .grid > * {
+    min-width: 0;
+  }
+}
