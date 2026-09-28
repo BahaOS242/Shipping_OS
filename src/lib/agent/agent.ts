@@ -143,21 +143,22 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
         if (!weight && !destination) {
           return reply(
             [{ text: "I can help with that! 💰\n\n**How heavy is it?** Pick one, or type the weight." }],
-            [5, 10, 20, 50].map((w) => ({ id: `weight:${w}`, label: `${w} lbs` })),
+            // Buttons carry the full answer so stateless servers (serverless, WhatsApp) never lose it.
+            [5, 10, 20, 50].map((w) => ({ id: `quote:${w}`, label: `${w} lbs` })),
             { awaiting: "weight" },
           );
         }
         if (!destination) {
           return reply(
             [{ text: `I can help estimate that.\n\n**Where are you sending it?**` }],
-            MAIN_ISLANDS.map((id) => ({ id: `dest:${id}`, label: ISLANDS[id].name, icon: "🇧🇸" })),
+            MAIN_ISLANDS.map((id) => ({ id: `quote:${weight}:${id}`, label: ISLANDS[id].name, icon: "🇧🇸" })),
             { awaiting: "destination", weight },
           );
         }
         if (!weight) {
           return reply(
             [{ text: `Going to **${ISLANDS[destination].name}**. 👍\n\n**How heavy is it?**` }],
-            [5, 10, 20, 50].map((w) => ({ id: `weight:${w}`, label: `${w} lbs` })),
+            [5, 10, 20, 50].map((w) => ({ id: `quote:${w}:${destination}`, label: `${w} lbs` })),
             { awaiting: "weight", destination },
           );
         }
