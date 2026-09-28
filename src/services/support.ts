@@ -40,7 +40,7 @@ export function createTicket(actor: Actor, input: { customerId: ID; subject: str
     emit("SUPPORT_TICKET_CREATED", {
       actor,
       refs: { customerId: t.customerId, ticketId: t.id, packageId: t.packageId, shipmentId: t.shipmentId, billId: t.billId },
-      summary: `Ticket ${t.id} opened${t.createdBy === "ai" ? " by Link Assistant" : ""}: ${t.subject}`,
+      summary: `Ticket ${t.id} opened${t.createdBy === "ai" ? " by Shipping OS Assistant" : ""}: ${t.subject}`,
       customerSummary: `We opened request ${t.id} so a person can help: ${t.subject}.`,
     });
     return t;
@@ -58,7 +58,7 @@ export function replyTicket(actor: Actor, id: ID, text: string) {
     if (staff) {
       t.assignee ??= actor.name;
       logConversation(t.customerId, t.channel === "whatsapp" ? "whatsapp" : "web", "staff", text.trim(), actor.name);
-      emit("STAFF_MESSAGE", { actor, refs: { customerId: t.customerId, ticketId: t.id }, summary: `${actor.name} replied on ${t.id}`, customerSummary: `${actor.name.split(" ")[0]} from The Link replied: “${text.trim()}”` });
+      emit("STAFF_MESSAGE", { actor, refs: { customerId: t.customerId, ticketId: t.id }, summary: `${actor.name} replied on ${t.id}`, customerSummary: `${actor.name.split(" ")[0]} from Shipping OS replied: “${text.trim()}”` });
     } else {
       emit("TICKET_UPDATED", { actor, refs: { customerId: t.customerId, ticketId: t.id }, summary: `Customer replied on ${t.id}` });
     }
@@ -104,7 +104,7 @@ export function logConversation(customerId: ID, channel: Conversation["channel"]
     if (intent) c.intents.push(intent);
     const where = channel === "whatsapp" ? "WhatsApp" : "web chat";
     if (author === "customer") emit("CUSTOMER_MESSAGE", { actor: { kind: "customer", name: "Customer", role: "customer", customerId }, refs: { customerId }, summary: `Customer asked on ${where}: “${text.slice(0, 120)}”` });
-    if (author === "assistant" && intent) emit("AI_RESPONDED", { actor: { kind: "ai", name: "Link Assistant", role: "customer", customerId }, refs: { customerId }, summary: `Link Assistant answered on ${where} (${intent})` });
+    if (author === "assistant" && intent) emit("AI_RESPONDED", { actor: { kind: "ai", name: "Shipping OS Assistant", role: "customer", customerId }, refs: { customerId }, summary: `Shipping OS Assistant answered on ${where} (${intent})` });
     return c;
   });
 }

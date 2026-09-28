@@ -1,5 +1,5 @@
 /**
- * THE LINK — domain model (one source of truth).
+ * SHIPPING OS — domain model (one source of truth).
  *
  * Every screen, the AI assistant, WhatsApp and the API read these entities
  * through the service layer. Shapes mirror the intended PostgreSQL schema.
@@ -114,7 +114,7 @@ export type PackageStorage = {
 };
 
 export type Package = {
-  /** The Link package ID — printed as a QR code, used everywhere. e.g. TL-PKG-10482 */
+  /** Shipping OS package ID — printed as a QR code, used everywhere. e.g. TL-PKG-10482 */
   id: ID;
   /** Unset until the warehouse matches the label to a customer. */
   customerId?: ID;
@@ -236,7 +236,7 @@ export type PurchaseInvoice = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Money — bills from The Link, payments, reconciliation               */
+/* Money — bills from Shipping OS, payments, reconciliation               */
 /* ------------------------------------------------------------------ */
 
 export type ChargeKind = "shipping" | "island_delivery" | "delivery" | "storage" | "procurement" | "handling" | "customs_duty" | "other";
@@ -247,7 +247,7 @@ export type BillLine = {
   description: string;
   amount: number;
   packageId?: ID;
-  /** VAT applies to The Link's services, not to duty collected for government. */
+  /** VAT applies to Shipping OS's services, not to duty collected for government. */
   taxable: boolean;
 };
 

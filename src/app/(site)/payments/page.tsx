@@ -54,7 +54,7 @@ function Payments() {
                 <ul className="mt-2 grid gap-2 sm:grid-cols-3">
                   {Object.entries(kinds).map(([k, v]) => <li key={k} className="flex justify-between rounded-xl bg-sand-50 px-3 py-2"><span>{k}</span><strong><Money n={v} /></strong></li>)}
                 </ul>
-                <p className="mt-2 text-xs text-ink-mute">Includes {BILLING_RULES.vatRate * 100}% VAT on The Link&apos;s services.</p>
+                <p className="mt-2 text-xs text-ink-mute">Includes {BILLING_RULES.vatRate * 100}% VAT on Shipping OS&apos;s services.</p>
               </Card>
             )}
 

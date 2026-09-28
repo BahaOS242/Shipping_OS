@@ -1,7 +1,7 @@
 /**
  * RATES ENGINE — the only place prices and billable weight are calculated.
  *
- * DEMO rate card: believable placeholders, not The Link's official prices.
+ * DEMO rate card: believable placeholders, not Shipping OS's official prices.
  * Rules are keyed by service + zone so carriers/routes can vary later.
  */
 import type { Destination, ServiceLevel, Zone } from "./types";

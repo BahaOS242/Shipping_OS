@@ -34,4 +34,4 @@ export function currentActor(): Actor {
 
 export const staffActor = (name: string, role: Actor["role"]): Actor => ({ kind: "staff", name, role });
 export const customerActor = (c: Customer): Actor => ({ kind: "customer", name: `${c.firstName} ${c.lastName}`, role: "customer", customerId: c.id });
-export const aiActor = (customerId: ID): Actor => ({ kind: "ai", name: "Link Assistant", role: "customer", customerId });
+export const aiActor = (customerId: ID): Actor => ({ kind: "ai", name: "Shipping OS Assistant", role: "customer", customerId });

@@ -1,5 +1,5 @@
 /**
- * The Link service layer — the only way screens, the AI and APIs touch data.
+ * Shipping OS service layer — the only way screens, the AI and APIs touch data.
  *
  *   Website · Customer app · Staff UI · AI assistant · WhatsApp · MCP/API
  *                                   ↓

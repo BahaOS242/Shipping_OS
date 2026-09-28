@@ -74,7 +74,7 @@ export default function PurchaseInvoicePage({ params }: { params: Promise<{ id: 
                 <dt className="text-ink-mute">Invoice</dt><dd>{v.accounting.invoice}</dd>
                 <dt className="text-ink-mute">Amount</dt><dd>{v.accounting.currency} {v.accounting.amount.toFixed(2)} (≈ {fmtUsd(v.accounting.amountUsd)})</dd>
                 <dt className="text-ink-mute">Merchant payment</dt><dd>{v.accounting.merchantPayment}</dd>
-                <dt className="text-ink-mute">The Link bill</dt><dd>{v.accounting.linkBillId ? <BillLink id={v.accounting.linkBillId} /> : "Not billed yet"}</dd>
+                <dt className="text-ink-mute">Shipping OS bill</dt><dd>{v.accounting.linkBillId ? <BillLink id={v.accounting.linkBillId} /> : "Not billed yet"}</dd>
                 <dt className="text-ink-mute">Reconciliation</dt><dd>{v.accounting.linkBillId ? svc.reconciliationRows().find((r) => r.billId === v.accounting.linkBillId)?.status.replace("_", " ") : "—"}</dd>
               </dl>
             )}

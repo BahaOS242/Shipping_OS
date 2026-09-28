@@ -32,7 +32,7 @@ export function shoppingAddress(c: Customer) {
   const w = warehouse();
   return {
     name: customerName(c),
-    line1: `The Link #${c.accountNumber}`,
+    line1: `Shipping OS #${c.accountNumber}`,
     line2: w.addressLines[0],
     cityLine: w.addressLines[1],
     demo: true as const,

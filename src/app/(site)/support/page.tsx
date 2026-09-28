@@ -37,7 +37,7 @@ function Thread({ t }: { t: SupportTicket }) {
     <ol className="max-h-80 space-y-2 overflow-y-auto">
       {t.messages.map((m) => (
         <li key={m.id} className={`max-w-[85%] rounded-2xl px-3 py-2 ${m.author === "customer" ? "bg-[#eef1f4]" : m.author === "staff" ? "ml-auto bg-sea-50" : "ml-auto bg-sun-50"}`}>
-          <p className="text-xs font-bold text-ink-mute">{m.author === "customer" ? "Customer" : m.author === "staff" ? m.staffName ?? "The Link team" : "Link Assistant (AI)"} · {fmtDateTime(m.at)}</p>
+          <p className="text-xs font-bold text-ink-mute">{m.author === "customer" ? "Customer" : m.author === "staff" ? m.staffName ?? "Shipping OS team" : "Shipping OS Assistant (AI)"} · {fmtDateTime(m.at)}</p>
           <p className="whitespace-pre-line">{m.text}</p>
         </li>
       ))}
@@ -59,8 +59,8 @@ function CustomerSupport() {
         return (
           <div className="space-y-6">
             <header className="flex flex-wrap items-end justify-between gap-3">
-              <div><h1 className="text-4xl font-black tracking-tight sm:text-5xl">Help requests</h1><p className="mt-1 text-xl text-ink-soft">Talk to a real person at The Link.</p></div>
-              <div className="flex gap-2"><ButtonLink href="/assistant" variant="secondary" size="md" icon="🤖">Ask Link Assistant</ButtonLink><ButtonLink href="/whatsapp-demo" variant="whatsapp" size="md" icon="💬">WhatsApp</ButtonLink></div>
+              <div><h1 className="text-4xl font-black tracking-tight sm:text-5xl">Help requests</h1><p className="mt-1 text-xl text-ink-soft">Talk to a real person at Shipping OS.</p></div>
+              <div className="flex gap-2"><ButtonLink href="/assistant" variant="secondary" size="md" icon="🤖">Ask Shipping OS Assistant</ButtonLink><ButtonLink href="/whatsapp-demo" variant="whatsapp" size="md" icon="💬">WhatsApp</ButtonLink></div>
             </header>
             <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
               <div className="space-y-4">
@@ -87,7 +87,7 @@ function CustomerSupport() {
                     </form>
                   )}
                 </Section>
-              ) : <EmptyState icon="🎧" title="No requests yet">Ask Link Assistant first — it can answer most questions instantly.</EmptyState>}
+              ) : <EmptyState icon="🎧" title="No requests yet">Ask Shipping OS Assistant first — it can answer most questions instantly.</EmptyState>}
             </div>
           </div>
         );

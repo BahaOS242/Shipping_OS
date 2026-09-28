@@ -47,7 +47,7 @@ export default function PackagesPage() {
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{list.map((p) => <PackageCard key={p.id} pkg={p} />)}</div>
             ) : (
               <EmptyState icon={tab === "active" ? "📭" : "🎉"} title={tab === "active" ? "Nothing on the move" : "No deliveries yet"}>
-                {tab === "active" ? "Shop using your The Link address and your packages show up here." : "Delivered packages will appear here."}
+                {tab === "active" ? "Shop using your Shipping OS address and your packages show up here." : "Delivered packages will appear here."}
               </EmptyState>
             )}
             <details className="group rounded-[var(--radius-card)] bg-white p-5 ring-1 ring-sand-200/70">

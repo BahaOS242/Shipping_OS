@@ -79,4 +79,4 @@ export function emit(type: EventType, input: EmitInput): AuditEvent {
   return event;
 }
 
-export const SYSTEM: Actor = { kind: "system", name: "The Link system", role: "admin" };
+export const SYSTEM: Actor = { kind: "system", name: "Shipping OS system", role: "admin" };

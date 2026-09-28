@@ -7,7 +7,7 @@ const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakart
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://shipping-os-kappa.vercel.app"),
-  title: { default: "The Link — Everything you buy, delivered to The Bahamas", template: "%s · The Link" },
+  title: { default: "Shipping OS — Everything you buy, delivered to The Bahamas", template: "%s · Shipping OS" },
   description: "Your U.S. shipping address, package receiving, consolidation, freight and local delivery — all connected. (Product demo)",
   robots: { index: false, follow: false },
 };

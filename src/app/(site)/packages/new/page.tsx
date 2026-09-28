@@ -39,7 +39,7 @@ export default function NewPackagePage() {
           }}
         >
           <h1 className="text-4xl font-black tracking-tight">Tell us a package is coming</h1>
-          <p className="text-lg text-ink-soft">Optional — it helps us match it faster. Everything you ship to your The Link address is matched automatically anyway.</p>
+          <p className="text-lg text-ink-soft">Optional — it helps us match it faster. Everything you ship to your Shipping OS address is matched automatically anyway.</p>
           <Field label="Where did you buy it?">
             <Select value={store} onChange={(e) => { setStore(e.target.value); setCarrier(e.target.value === "Amazon" ? "Amazon" : "UPS"); }}>{STORES.map((s) => <option key={s}>{s}</option>)}</Select>
           </Field>

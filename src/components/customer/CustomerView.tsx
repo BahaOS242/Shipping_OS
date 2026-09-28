@@ -8,7 +8,7 @@ import { Live } from "../ui/Live";
 export function CustomerView({ title, children }: { title: string; children: (me: Customer, actor: Actor) => React.ReactNode }) {
   return (
     <>
-      <title>{`${title} · The Link`}</title>
+      <title>{`${title} · Shipping OS`}</title>
       <Live>
         {() => {
           const s = svc.getSession();

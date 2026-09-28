@@ -122,7 +122,7 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
         )}
         <main id="main" className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {!live ? null : role === "customer" ? (
-            <AccessNote title="This is The Link's staff area" body="In the demo, switch to a staff role to see how the team works." roles={["manager", "warehouse", "customs", "accounting", "support"]} />
+            <AccessNote title="This is Shipping OS's staff area" body="In the demo, switch to a staff role to see how the team works." roles={["manager", "warehouse", "customs", "accounting", "support"]} />
           ) : role && !canSeeOpsPath(role, pathname) ? (
             <AccessNote title={`${ROLE_INFO[role].label} can't open this area`} body="Each team gets its own work queue. Switch role to see this screen." roles={OPS_NAV.find((n) => pathname.startsWith(n.href))?.roles.filter((r) => r !== "admin") ?? ["manager"]} />
           ) : (

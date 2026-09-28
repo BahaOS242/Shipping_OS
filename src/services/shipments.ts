@@ -133,7 +133,7 @@ export function customsPacket(shipmentId: ID) {
     generatedAt: sh.customs.packetGeneratedAt ?? nowIso(),
     disclaimer: CUSTOMS_DISCLAIMER,
     consignee: { name: customerName(c), account: c.accountNumber, phone: c.phone, address: c.deliveryAddress },
-    shipper: { name: "The Link Services (DEMO)", address: warehouse().addressLines.join(", ") },
+    shipper: { name: "Shipping OS (DEMO)", address: warehouse().addressLines.join(", ") },
     shipment: { id: sh.id, service: sh.service, destination: getDestination(sh.destinationId).name, voyage: voyage?.label, pickup: getLocation(getDestination(sh.destinationId).pickupLocationIds[0])?.name },
     lines,
     totals: {

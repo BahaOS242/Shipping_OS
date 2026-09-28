@@ -5,7 +5,7 @@ import { DemoBadge } from "@/components/ui/DemoBadge";
 import { destinations, locations } from "@/data/reference";
 import { fmtUsd } from "@/domain/rates";
 
-export const metadata: Metadata = { title: "Locations", description: "Where The Link receives your packages in Florida and where you pick them up across The Bahamas." };
+export const metadata: Metadata = { title: "Locations", description: "Where Shipping OS receives your packages in Florida and where you pick them up across The Bahamas." };
 
 const PAGES = [
   { slug: "nassau", label: "Nassau", icon: "🏙️" },

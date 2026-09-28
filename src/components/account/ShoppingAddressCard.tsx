@@ -37,7 +37,7 @@ export function ShoppingAddressCard({ address, compact = false }: { address: Add
         {copied ? "Copied!" : "Copy my address"}
       </button>
       <p className="mt-3 text-sm text-sea-100/80" aria-live="polite">
-        Your number <strong className="text-white">{address.line1.replace("The Link ", "")}</strong> tells us the package is yours.
+        Your number <strong className="text-white">{address.line1.replace("Shipping OS ", "")}</strong> tells us the package is yours.
       </p>
     </div>
   );

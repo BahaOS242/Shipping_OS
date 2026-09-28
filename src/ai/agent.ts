@@ -1,5 +1,5 @@
 /**
- * LINK ASSISTANT — channel-agnostic agent.
+ * SHIPPING OS ASSISTANT — channel-agnostic agent.
  *
  *   channel → handleAgentRequest → planner (intent) → controlled tools (facts)
  *           → plain-language reply (+ buttons, cards, tool trace)
@@ -63,7 +63,7 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
           active[0] ||
           pkgs[0];
         if (!match) {
-          return reply([{ text: "I don't see any packages yet. 📭\n\nWhen you shop, use your **The Link address** and your package shows up here." }], [{ id: "address", label: "Show my address", icon: "🏠" }, A.another]);
+          return reply([{ text: "I don't see any packages yet. 📭\n\nWhen you shop, use your **Shipping OS address** and your package shows up here." }], [{ id: "address", label: "Show my address", icon: "🏠" }, A.another]);
         }
         if (match.id !== i.packageId && i.packageId) tool("getPackage", { packageId: i.packageId });
         const others = active.filter((p) => p.id !== match.id);
@@ -154,7 +154,7 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
         return reply([{ text: "I'm sorry! 💔 You can report a problem and our team will review it — add a photo if you can." }], [{ id: "link:/claims/new", label: "Report a problem", icon: "🛟", href: "/claims/new" }, A.human]);
 
       case "how_it_works":
-        return reply([{ text: "No problem 😊\n\nThink of The Link like this:\n\n**You buy it → We receive it → We bring it here → You get it.**\n\nThat's it." }], [{ id: "link:/how-it-works", label: "Show Me How", icon: "👀", href: "/how-it-works" }, { id: "find_package", label: "Find my package", icon: "📦" }, A.human]);
+        return reply([{ text: "No problem 😊\n\nThink of Shipping OS like this:\n\n**You buy it → We receive it → We bring it here → You get it.**\n\nThat's it." }], [{ id: "link:/how-it-works", label: "Show Me How", icon: "👀", href: "/how-it-works" }, { id: "find_package", label: "Find my package", icon: "📦" }, A.human]);
 
       case "address": {
         const c = tool<{ shoppingAddress: { name: string; line1: string; line2: string; cityLine: string } }>("getCustomer");
@@ -173,7 +173,7 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
 
       case "human": {
         const out = tool<{ ticketId: string; expectedReply: string }>("escalateToHuman", { reason: i.reason, packageId: context.lastPackageId });
-        return { ...reply([{ text: `Okay! 🙋 I've asked a person on The Link team to help you.\n\nThey usually reply **${out.expectedReply}**.` }], [{ id: "find_package", label: "Find my package", icon: "📦" }, A.another], { ticketId: out.ticketId }), handoff: { ticketId: out.ticketId, expectedReply: out.expectedReply } };
+        return { ...reply([{ text: `Okay! 🙋 I've asked a person on the Shipping OS team to help you.\n\nThey usually reply **${out.expectedReply}**.` }], [{ id: "find_package", label: "Find my package", icon: "📦" }, A.another], { ticketId: out.ticketId }), handoff: { ticketId: out.ticketId, expectedReply: out.expectedReply } };
       }
 
       case "open_link": {

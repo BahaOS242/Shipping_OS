@@ -62,7 +62,7 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
             )}
             <Link href={me ? "/dashboard" : "/admin"} className="flex min-h-11 items-center gap-2 rounded-full bg-white py-1.5 pl-1.5 pr-4 font-bold ring-1 ring-sand-200 hover:ring-sea-400">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-sun-400 text-sm font-extrabold" aria-hidden>{me ? me.firstName[0] : "★"}</span>
-              {me ? "My Link" : "Staff"}
+              {me ? "My Shipping" : "Staff"}
             </Link>
           </div>
         </div>
@@ -71,14 +71,14 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-sand-200 bg-sand-100/60 pb-24 lg:pb-0">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-4">
           <div className="md:col-span-1">
-            <div className="flex items-center gap-2.5"><LogoMark className="h-8 w-8" /><span className="text-lg font-extrabold">THE LINK</span></div>
+            <div className="flex items-center gap-2.5"><LogoMark className="h-8 w-8" /><span className="text-lg font-extrabold">SHIPPING OS</span></div>
             <p className="mt-3 text-ink-soft">From checkout to your doorstep. We handle the rest.</p>
             <p className="mt-3 text-sm text-ink-mute">Product demo with fictional data. Prices, tracking and addresses are simulated.</p>
           </div>
           {[
             { h: "Ship with us", l: [["How it works", "/how-it-works"], ["Your U.S. address", "/us-address-bahamas"], ["Shipping to The Bahamas", "/shipping-to-bahamas"], ["Put packages together", "/package-consolidation-bahamas"], ["Shipping calculator", "/shipping-calculator"]] },
             { h: "Services", l: [["Air freight", "/air-freight-bahamas"], ["Ocean freight", "/ocean-freight-bahamas"], ["Amazon to The Bahamas", "/amazon-bahamas"], ["Family Islands", "/shipping-to-family-islands"], ["Business logistics", "/business"]] },
-            { h: "Help & demo", l: [["Locations", "/locations"], ["Help", "/help"], ["Link Assistant", "/assistant"], ["WhatsApp demo", "/whatsapp-demo"], ["Staff operations (demo)", "/admin"]] },
+            { h: "Help & demo", l: [["Locations", "/locations"], ["Help", "/help"], ["Shipping OS Assistant", "/assistant"], ["WhatsApp demo", "/whatsapp-demo"], ["Staff operations (demo)", "/admin"]] },
           ].map((c) => (
             <div key={c.h}>
               <h2 className="font-bold">{c.h}</h2>

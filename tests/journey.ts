@@ -30,7 +30,7 @@ async function main() {
     pkgId = svc.preAlert(T, { customerId: trevor.id, merchant: "Amazon", itemName: "USB-C charging cable", carrier: "Amazon", inboundTracking: "TBATEST0001", orderNumber: "112-0000001" }).id;
     assert.equal(svc.getPackage(pkgId).status, "incoming");
   });
-  await step("Customer ships it to The Link U.S. address", () => assert.match(svc.shoppingAddress(trevor).line1, /#TL10284/));
+  await step("Customer ships it to Shipping OS U.S. address", () => assert.match(svc.shoppingAddress(trevor).line1, /#TL10284/));
   await step("Package arrives at the dock", () => {
     const r = svc.dockScan(WH, { inboundTracking: "TBATEST0001", carrier: "Amazon", labelName: "Trevor Armstrong", labelSuite: "TL10284", merchant: "Amazon" });
     assert.equal(r.package.id, pkgId);

@@ -1,5 +1,5 @@
 /**
- * BILLING & PAYMENTS — what The Link charges, what customers paid (DEMO PAYMENT),
+ * BILLING & PAYMENTS — what Shipping OS charges, what customers paid (DEMO PAYMENT),
  * and reconciliation between the two. No real money moves anywhere.
  */
 import { DAY, now, nowIso } from "@/data/clock";

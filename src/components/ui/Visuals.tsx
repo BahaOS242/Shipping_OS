@@ -3,7 +3,7 @@
 import QRCode from "qrcode";
 import { useMemo } from "react";
 
-/** QR code for a The Link ID (rendered locally as SVG). */
+/** QR code for a Shipping OS ID (rendered locally as SVG). */
 export function QR({ value, size = 128, label = true }: { value: string; size?: number; label?: boolean }) {
   const path = useMemo(() => {
     const q = QRCode.create(value, { errorCorrectionLevel: "M" });

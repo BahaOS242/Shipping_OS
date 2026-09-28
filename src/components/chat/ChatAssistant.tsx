@@ -17,7 +17,7 @@ const uid = () => `m${++n}`;
 const plain = (t: string) => t.replace(/\*\*/g, "");
 
 /**
- * Link Assistant (web channel). Runs the same agent + controlled tools the
+ * Shipping OS Assistant (web channel). Runs the same agent + controlled tools the
  * /api/agent route and WhatsApp use, against the shared data.
  */
 export function ChatAssistant({ customerId, autoAsk, tall }: { customerId: ID; autoAsk?: { id: string; label: string }; tall?: boolean }) {
@@ -63,7 +63,7 @@ export function ChatAssistant({ customerId, autoAsk, tall }: { customerId: ID; a
       <div className="flex items-center justify-between gap-3 bg-sea-700 px-5 py-4 text-white">
         <div className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-full bg-sun-400 text-2xl" aria-hidden>🤖</span>
-          <div><p className="text-lg font-extrabold leading-tight">Link Assistant</p><p className="flex items-center gap-1.5 text-sm text-sea-100"><span className="h-2 w-2 rounded-full bg-emerald-300" aria-hidden /> Online · simulated AI</p></div>
+          <div><p className="text-lg font-extrabold leading-tight">Shipping OS Assistant</p><p className="flex items-center gap-1.5 text-sm text-sea-100"><span className="h-2 w-2 rounded-full bg-emerald-300" aria-hidden /> Online · simulated AI</p></div>
         </div>
         <button onClick={() => setTools((s) => !s)} aria-pressed={tools} className="min-h-10 rounded-xl px-3 text-sm font-semibold text-sea-100 ring-1 ring-white/20 hover:bg-white/10">{tools ? "Hide" : "Show"} tools 🔧</button>
       </div>
@@ -82,7 +82,7 @@ export function ChatAssistant({ customerId, autoAsk, tall }: { customerId: ID; a
           ),
         )}
         {busy && (
-          <div className="flex w-20 items-center justify-center gap-1.5 rounded-3xl rounded-bl-md bg-white px-4 py-4 ring-1 ring-sand-200" aria-label="Link Assistant is typing">
+          <div className="flex w-20 items-center justify-center gap-1.5 rounded-3xl rounded-bl-md bg-white px-4 py-4 ring-1 ring-sand-200" aria-label="Shipping OS Assistant is typing">
             {[0, 150, 300].map((d) => <span key={d} className="h-2.5 w-2.5 animate-bounce rounded-full bg-ink-mute" style={{ animationDelay: `${d}ms` }} />)}
           </div>
         )}
@@ -95,7 +95,7 @@ export function ChatAssistant({ customerId, autoAsk, tall }: { customerId: ID; a
             ))}
           </div>
         )}
-        {handoff && <p className="rounded-2xl bg-sun-50 p-3 text-center font-semibold text-sun-700 ring-1 ring-sun-300">🙋 A person from The Link can now see this chat ({handoff}). <Link className="underline" href="/support">See my requests</Link></p>}
+        {handoff && <p className="rounded-2xl bg-sun-50 p-3 text-center font-semibold text-sun-700 ring-1 ring-sun-300">🙋 A person from Shipping OS can now see this chat ({handoff}). <Link className="underline" href="/support">See my requests</Link></p>}
         <div ref={end} />
       </div>
       <div className="border-t border-sand-200 bg-white p-3 sm:p-4">

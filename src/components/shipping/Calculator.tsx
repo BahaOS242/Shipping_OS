@@ -67,7 +67,7 @@ export function Calculator({ initial }: { initial?: { to?: DestinationId; weight
               <p className="mt-4 rounded-xl bg-white/10 p-3">&ldquo;Your final price may change depending on the package.&rdquo;</p>
               <div className="mt-5 grid gap-3">
                 <ButtonLink href={`/ship?to=${to}&weight=${lbs}`} variant="gold" size="xl" full icon="🚚">Start Shipping</ButtonLink>
-                <ButtonLink href="/assistant" variant="secondary" full icon="💬" className="!bg-white/10 !text-white !ring-white/20">Ask The Link</ButtonLink>
+                <ButtonLink href="/assistant" variant="secondary" full icon="💬" className="!bg-white/10 !text-white !ring-white/20">Ask Shipping OS</ButtonLink>
               </div>
             </div>
           ) : <p className="mt-3 text-lg">Answer the questions and your price shows up here. 👇</p>}

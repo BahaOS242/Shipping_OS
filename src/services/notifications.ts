@@ -32,7 +32,7 @@ export const CUSTOMER_RULES: Partial<Record<string, Rule>> = {
   CLAIM_CREATED: { icon: "🛟", title: "Claim received", channels: ["in_app", "email"], href: (e) => `/claims?open=${e.refs.claimId}` },
   CLAIM_UPDATED: { icon: "🛟", title: "Claim update", channels: ["in_app", "email"], href: (e) => `/claims?open=${e.refs.claimId}` },
   SUPPORT_TICKET_CREATED: { icon: "🎧", title: "Help request opened", channels: ["in_app"], href: () => "/support" },
-  STAFF_MESSAGE: { icon: "💬", title: "Message from The Link", channels: ["in_app"], href: () => "/support" },
+  STAFF_MESSAGE: { icon: "💬", title: "Message from Shipping OS", channels: ["in_app"], href: () => "/support" },
   CUSTOMER_NOTIFIED: { icon: "⏰", title: "Your package is waiting", channels: ["in_app", "whatsapp", "email"], href: pkgOrShipment },
   STORAGE_FEE_APPLIED: { icon: "⏰", title: "Storage fee added", channels: ["in_app", "email"], href: () => "/payments" },
   PROCUREMENT_UPDATED: { icon: "🛒", title: "Buy-for-me update", channels: ["in_app", "email"], href: () => "/dashboard" },

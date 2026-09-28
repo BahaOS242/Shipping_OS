@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-/** THE LINK wordmark with two interlocking rings (Florida ↔ Bahamas). */
+/** SHIPPING OS wordmark with two interlocking rings (Florida ↔ Bahamas). */
 export function LogoMark({ className = "h-9 w-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={className} aria-hidden>
@@ -14,10 +14,10 @@ export function LogoMark({ className = "h-9 w-9" }: { className?: string }) {
 
 export function Logo({ href = "/", suffix }: { href?: string; suffix?: string }) {
   return (
-    <Link href={href} className="flex items-center gap-2.5" aria-label="The Link — home">
+    <Link href={href} className="flex items-center gap-2.5" aria-label="Shipping OS — home">
       <LogoMark />
       <span className="whitespace-nowrap text-xl font-extrabold tracking-tight text-ink">
-        THE LINK{suffix && <span className="ml-2 hidden text-sm font-semibold text-ink-mute sm:inline">{suffix}</span>}
+        SHIPPING OS{suffix && <span className="ml-2 hidden text-sm font-semibold text-ink-mute sm:inline">{suffix}</span>}
       </span>
     </Link>
   );

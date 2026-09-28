@@ -70,7 +70,7 @@ export const TOOLS: ToolDef[] = [
     run: (i) => svc.estimate({ destinationId: i.destinationId as DestinationId, service: (i.service as ServiceLevel) ?? "air", actualWeight: Number(i.weight), length: i.length as number, width: i.width as number, height: i.height as number }) },
   { name: "createQuote", description: "Save a demo quote for the customer.", inputSchema: obj({ destinationId: { type: "string", enum: dests() }, weight: { type: "number" }, service: { type: "string", enum: ["air", "ocean"] } }, ["destinationId", "weight", "service"]), access: "write",
     run: (i, ctx) => svc.createQuote(svc.aiActor(ctx.customerId), { destinationId: i.destinationId as DestinationId, service: i.service as ServiceLevel, actualWeight: Number(i.weight) }).quote },
-  { name: "getInvoices", description: "The customer's bills from The Link with status and balance.", inputSchema: obj(), access: "read",
+  { name: "getInvoices", description: "The customer's bills from Shipping OS with status and balance.", inputSchema: obj(), access: "read",
     run: (_i, ctx) => svc.listBills({ customerId: ctx.customerId }).filter((b) => b.lifecycle === "issued").map((b) => ({ id: b.id, total: b.total, paid: b.paid, balance: b.balance, status: b.status, dueAt: b.dueAt, shipmentId: b.shipmentId })) },
   { name: "getInvoice", description: "One bill with its lines.", inputSchema: obj({ billId: { type: "string" } }, ["billId"]), access: "read",
     run: (i, ctx) => { const b = own(svc.findBill(String(i.billId)), ctx, "Bill"); const v = svc.billView(b); return { id: v.id, lines: v.lines, total: v.total, paid: v.paid, balance: v.balance, status: v.status }; } },
@@ -88,7 +88,7 @@ export const TOOLS: ToolDef[] = [
     run: (i, ctx) => { const p = own(svc.findPackage(String(i.packageId)), ctx, "Package"); return svc.packageStorage(p.id); } },
   { name: "getDeliveryStatus", description: "Delivery or pickup status for a shipment.", inputSchema: obj({ shipmentId: { type: "string" } }, ["shipmentId"]), access: "read",
     run: (i, ctx) => { const sh = own(svc.findShipment(String(i.shipmentId)), ctx, "Shipment"); const d = svc.deliveryForShipment(sh.id); return d ? { status: DELIVERY_COPY[d.status].customer, method: d.method, window: d.window, driver: d.driver, address: d.address } : { status: "Not in The Bahamas yet" }; } },
-  { name: "escalateToHuman", description: "Hand the conversation to a person on The Link team.", inputSchema: obj({ reason: { type: "string" }, packageId: { type: "string" } }, ["reason"]), access: "write",
+  { name: "escalateToHuman", description: "Hand the conversation to a person on the Shipping OS team.", inputSchema: obj({ reason: { type: "string" }, packageId: { type: "string" } }, ["reason"]), access: "write",
     run: (i, ctx) => { const t = svc.createTicket(svc.aiActor(ctx.customerId), { customerId: ctx.customerId, channel: ctx.channel, subject: String(i.reason).slice(0, 80), message: String(i.reason), packageId: i.packageId as string, priority: "high" }); svc.markEscalated(ctx.customerId, ctx.channel === "whatsapp" ? "whatsapp" : "web", t.id); return { ticketId: t.id, expectedReply: "within 15 minutes during opening hours" }; } },
 ];
 

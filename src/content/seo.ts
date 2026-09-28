@@ -22,7 +22,7 @@ export type SeoPage = {
 };
 
 const HOW_CORE: [string, string][] = [
-  ["Get your U.S. address", "Every customer gets a personal The Link address in Florida with their own account number."],
+  ["Get your U.S. address", "Every customer gets a personal Shipping OS address in Florida with their own account number."],
   ["Shop anywhere", "Use that address at checkout on Amazon, Walmart, Target or any U.S. store."],
   ["We receive it", "We scan, weigh and photograph each package and message you: “We have it!”"],
   ["We send it", "Send it right away or put several packages together. We prepare the customs paperwork."],
@@ -36,7 +36,7 @@ export const SEO_PAGES: SeoPage[] = [
     description: "Ship anything from the United States to Nassau and the Family Islands. Air and ocean freight, simple prices, updates on WhatsApp.",
     h1: "Shipping to The Bahamas, made simple.",
     eyebrow: "Shipping to The Bahamas",
-    problem: "Most U.S. stores won't ship to The Bahamas — or charge a fortune when they do. Freight forwarders help, but the process is confusing: waybills, customs forms, surprise fees. The Link turns it into one simple flow you can follow from your phone.",
+    problem: "Most U.S. stores won't ship to The Bahamas — or charge a fortune when they do. Freight forwarders help, but the process is confusing: waybills, customs forms, surprise fees. Shipping OS turns it into one simple flow you can follow from your phone.",
     who: ["Anyone in The Bahamas who shops online", "Families sending things home", "Small businesses restocking from U.S. suppliers"],
     how: HOW_CORE,
     examples: [
@@ -57,13 +57,13 @@ export const SEO_PAGES: SeoPage[] = [
   {
     slug: "amazon-bahamas",
     title: "Amazon to The Bahamas — ship your Amazon orders home",
-    description: "Buy on Amazon.com and get it delivered in The Bahamas. Use your The Link U.S. address, we handle receiving, customs and delivery.",
+    description: "Buy on Amazon.com and get it delivered in The Bahamas. Use your Shipping OS U.S. address, we handle receiving, customs and delivery.",
     h1: "Your Amazon orders, delivered to The Bahamas.",
     eyebrow: "Amazon to The Bahamas",
-    problem: "Many Amazon items say “doesn't ship to your location.” With a The Link U.S. address, Amazon ships to our Florida warehouse like any U.S. order — and we bring it the rest of the way.",
+    problem: "Many Amazon items say “doesn't ship to your location.” With a Shipping OS U.S. address, Amazon ships to our Florida warehouse like any U.S. order — and we bring it the rest of the way.",
     who: ["Amazon shoppers in Nassau and the Family Islands", "Parents buying school supplies and clothes", "Businesses using Amazon Business"],
     how: [
-      ["Add your The Link address to Amazon", "Save it as a shipping address: your name, “The Link #TL…”, and our Florida warehouse."],
+      ["Add your Shipping OS address to Amazon", "Save it as a shipping address: your name, “Shipping OS #TL…”, and our Florida warehouse."],
       ["Upload your Amazon receipt", "Snap or upload the order receipt. We read it and match it to your package automatically."],
       ["We check it in", "When Amazon delivers to us, you get “We have it!” with the weight."],
       ["Put orders together", "Several Amazon boxes? We combine them into one shipment to save money."],
@@ -75,7 +75,7 @@ export const SEO_PAGES: SeoPage[] = [
       { label: "Three boxes put together to Abaco", destinationId: "abaco", service: "air", weight: 10 },
     ],
     costNote: "Small Amazon boxes often cost the minimum charge. Putting several together shares one minimum.",
-    next: ["Copy your The Link address into Amazon", "Order as usual", "Upload the receipt (or forward it) so customs is ready"],
+    next: ["Copy your Shipping OS address into Amazon", "Order as usual", "Upload the receipt (or forward it) so customs is ready"],
     faq: [
       ["Will Amazon ship to your address?", "Yes — it's a U.S. address, so almost all Amazon items ship to it."],
       ["What about batteries?", "Some items (like power banks) have air restrictions. We flag them and suggest ocean if needed. Final decisions are made by our team."],
@@ -94,7 +94,7 @@ export const SEO_PAGES: SeoPage[] = [
     who: ["Online shoppers", "Students and families", "Businesses ordering from U.S. suppliers"],
     how: [
       ["Sign up", "You get an account number like TL10284."],
-      ["Use the address", "Name · The Link #TL10284 · our Florida warehouse. That's it."],
+      ["Use the address", "Name · Shipping OS #TL10284 · our Florida warehouse. That's it."],
       ["We match it", "Our warehouse scans the label, reads your number and links the package to your account."],
       ["You're notified", "“We have it!” arrives in the app and on WhatsApp."],
       ["You decide", "Send it now, or wait and put it together with other packages."],
@@ -129,10 +129,10 @@ export const SEO_PAGES: SeoPage[] = [
       { label: "Mixed order to Exuma by air", destinationId: "exuma", service: "air", weight: 25 },
     ],
     costNote: "Big boxes are priced by the greater of real weight or size-based weight.",
-    next: ["Tell us what you're shipping", "Get an estimate", "Send it to your The Link address"],
+    next: ["Tell us what you're shipping", "Get an estimate", "Send it to your Shipping OS address"],
     faq: [
       ["Do you clear customs?", "We prepare the documents. Clearance decisions are made by authorized personnel — this demo only simulates that workflow."],
-      ["Can you handle commercial freight?", "Yes — see The Link for Business."],
+      ["Can you handle commercial freight?", "Yes — see Shipping OS for Business."],
     ],
     cta: { label: "Start shipping", href: "/ship" },
     related: ["commercial-freight-bahamas", "air-freight-bahamas", "ocean-freight-bahamas"],
@@ -152,7 +152,7 @@ export const SEO_PAGES: SeoPage[] = [
       { label: "10 lb to Abaco", destinationId: "abaco", service: "air", weight: 10 },
     ],
     costNote: "Air is priced per pound with a small minimum. Large light boxes use size-based weight.",
-    next: ["Check your price", "Ship to your The Link address", "Choose “Faster” when you send"],
+    next: ["Check your price", "Ship to your Shipping OS address", "Choose “Faster” when you send"],
     faq: [
       ["What can't fly?", "Aerosols, some batteries and hazardous items have air restrictions. We'll suggest ocean when needed."],
       ["How often are flights?", "Nassau several times a week; Family Islands on set days (see Locations)."],
@@ -175,7 +175,7 @@ export const SEO_PAGES: SeoPage[] = [
       { label: "Furniture (120 lb) to Exuma", destinationId: "exuma", service: "ocean", weight: 120, dims: [60, 30, 30] },
     ],
     costNote: "Ocean has a higher minimum but a much lower price per pound.",
-    next: ["Estimate your cost", "Ship it to your The Link address", "Choose “Bigger / slower” when you send"],
+    next: ["Estimate your cost", "Ship it to your Shipping OS address", "Choose “Bigger / slower” when you send"],
     faq: [["How long does ocean take?", "About 10–14 days including customs, depending on the sailing schedule."], ["Can you deliver big items?", "Yes — home delivery is available in Nassau and some islands."]],
     cta: { label: "Calculate ocean cost", href: "/shipping-calculator?service=ocean" },
     related: ["air-freight-bahamas", "commercial-freight-bahamas", "shipping-to-bahamas"],
@@ -186,7 +186,7 @@ export const SEO_PAGES: SeoPage[] = [
     description: "Get your online orders and freight delivered to Exuma. Air and ocean service, pickup in George Town or delivery.",
     h1: "Shipping to Exuma, without the runaround.",
     eyebrow: "Exuma",
-    problem: "Getting things to Exuma usually means two steps — to Nassau, then onward. The Link handles both legs and keeps one tracking timeline from checkout to George Town.",
+    problem: "Getting things to Exuma usually means two steps — to Nassau, then onward. Shipping OS handles both legs and keeps one tracking timeline from checkout to George Town.",
     who: ["Exuma residents", "Resorts, villas and restaurants", "Second-home owners"],
     how: HOW_CORE,
     examples: [
@@ -205,7 +205,7 @@ export const SEO_PAGES: SeoPage[] = [
     description: "Ship your U.S. purchases to Abaco. Air and ocean freight with pickup in Marsh Harbour.",
     h1: "Shipping to Abaco, all in one place.",
     eyebrow: "Abaco",
-    problem: "Abaco residents often juggle multiple shippers for air, ocean and local pickup. The Link gives you one address, one timeline and one bill.",
+    problem: "Abaco residents often juggle multiple shippers for air, ocean and local pickup. Shipping OS gives you one address, one timeline and one bill.",
     who: ["Abaco families", "Builders and contractors", "Local shops"],
     how: HOW_CORE,
     examples: [
@@ -233,7 +233,7 @@ export const SEO_PAGES: SeoPage[] = [
       { label: "80 lb to Andros by ocean", destinationId: "andros", service: "ocean", weight: 80 },
     ],
     costNote: "Family Island prices include the onward trip from Nassau.",
-    next: ["Check your island's schedule on Locations", "Ship to your The Link address", "Collect at your island's pickup point"],
+    next: ["Check your island's schedule on Locations", "Ship to your Shipping OS address", "Collect at your island's pickup point"],
     faq: [["What if my island has no office?", "Our local agent network meets the mailboat or flight and holds your package."], ["Can I get delivery?", "In Grand Bahama and Exuma, yes. Elsewhere, pickup."]],
     cta: { label: "See locations", href: "/locations/family-islands" },
     related: ["shipping-to-exuma", "shipping-to-abaco", "ocean-freight-bahamas"],
@@ -244,7 +244,7 @@ export const SEO_PAGES: SeoPage[] = [
     description: "Receiving, inventory, consolidation, commercial freight, procurement and delivery for Bahamian businesses — one dashboard, one bill.",
     h1: "Your logistics team, without hiring one.",
     eyebrow: "Business logistics",
-    problem: "Bahamian businesses lose hours chasing suppliers, forwarders, brokers and couriers. The Link gives you one team and one dashboard for the whole chain.",
+    problem: "Bahamian businesses lose hours chasing suppliers, forwarders, brokers and couriers. Shipping OS gives you one team and one dashboard for the whole chain.",
     who: ["Retailers and hardware stores", "Restaurants and hotels", "Contractors and clinics"],
     how: [
       ["Suppliers ship to us", "Amazon Business, Home Depot, Uline, Grainger — any U.S. supplier."],
@@ -260,7 +260,7 @@ export const SEO_PAGES: SeoPage[] = [
     costNote: "Business accounts get 30-day terms and volume pricing (demo).",
     next: ["Talk to our business team", "Connect your suppliers", "See everything in your business dashboard"],
     faq: [["Can you buy for us?", "Yes — tell us what you need and we source, buy, ship and deliver it (Buy for me)."], ["Do we get statements?", "Yes, monthly statements and a live balance."]],
-    cta: { label: "The Link for Business", href: "/business" },
+    cta: { label: "Shipping OS for Business", href: "/business" },
     related: ["commercial-freight-bahamas", "freight-forwarding-bahamas", "ocean-freight-bahamas"],
   },
   {
@@ -291,7 +291,7 @@ export const SEO_PAGES: SeoPage[] = [
     problem: "Every shipment has a minimum charge. Three small boxes sent separately means three minimums. Put together, they travel as one shipment and share it.",
     who: ["Anyone ordering from more than one store", "Families doing back-to-school shopping", "Businesses with many small supplier boxes"],
     how: [
-      ["Your boxes arrive", "Each gets its own The Link package ID, weight and photos."],
+      ["Your boxes arrive", "Each gets its own Shipping OS package ID, weight and photos."],
       ["Pick which to combine", "In My Packages, tap “Put These Together” and choose."],
       ["We pack them as one shipment", "One shipment, one customs packet, one bill."],
       ["Travels together", "Air or ocean."],
@@ -302,7 +302,7 @@ export const SEO_PAGES: SeoPage[] = [
       { label: "Same three boxes to Exuma", destinationId: "exuma", service: "air", weight: 10 },
     ],
     costNote: "Example: three 2–4 lb boxes sent separately each pay the minimum; together they're charged on combined weight.",
-    next: ["Ship to your The Link address as usual", "Wait until your boxes arrive (14 free storage days)", "Tap “Put These Together”"],
+    next: ["Ship to your Shipping OS address as usual", "Wait until your boxes arrive (14 free storage days)", "Tap “Put These Together”"],
     faq: [["How long will you hold packages?", "14 days free while you wait for other boxes (demo rule)."], ["Can I mix air and ocean?", "A shipment travels one way. We'll suggest the best option."]],
     cta: { label: "Put my packages together", href: "/packages/together" },
     related: ["amazon-bahamas", "us-address-bahamas", "shipping-to-bahamas"],

@@ -9,7 +9,7 @@ import type { DestinationId, ServiceLevel } from "@/domain/types";
 export default function CalculatorPage() {
   return (
     <>
-      <title>How much will it cost? · The Link</title>
+      <title>How much will it cost? · Shipping OS</title>
       <header className="mb-8">
         <h1 className="text-4xl font-black tracking-tight sm:text-5xl">How much will it cost?</h1>
         <p className="mt-2 text-xl text-ink-soft">Three quick questions. No sign-up needed.</p>

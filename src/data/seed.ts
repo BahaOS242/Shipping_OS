@@ -274,7 +274,7 @@ function build(): DbState {
     at(13, () => svc.demoPay(who("cus_keisha"), billOf(kSh.id).id));
     const kPb = pre("cus_keisha", 3, { merchant: "Amazon", item: "Power bank", w: 1.1, carrierWeight: 1.1 });
     recv(1, kPb, { merchant: "Amazon", item: "", w: 6.4, dims: [10, 8, 6] });
-    chat("cus_keisha", "whatsapp", 9, [["customer", "What's my US address again?", "address"], ["assistant", "Keisha Cartwright, The Link #TL10415, 123 Demo Warehouse Way, Hollywood, FL 33020", "address"]]);
+    chat("cus_keisha", "whatsapp", 9, [["customer", "What's my US address again?", "address"], ["assistant", "Keisha Cartwright, Shipping OS #TL10415, 123 Demo Warehouse Way, Hollywood, FL 33020", "address"]]);
 
     /* Marcus — new customer; duplicate scan */
     const mcCable = pre("cus_marcus", 5, { merchant: "Amazon", item: "USB-C charging cable", w: 0.6 });

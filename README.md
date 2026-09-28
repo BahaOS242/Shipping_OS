@@ -1,9 +1,9 @@
-# THE LINK — Logistics OS (demo)
+# SHIPPING OS — Logistics platform (demo)
 
 > **The digital logistics operating system connecting everything from checkout to your doorstep.**
 > BUY → SHIP → TRACK → RECEIVE
 
-A working prototype of The Link Services' customer platform **and** its internal
+A working prototype of Shipping OS' customer platform **and** its internal
 operations — customer app, warehouse, customs, accounting, delivery, claims,
 support, procurement, analytics, AI assistant and WhatsApp — all reading and
 writing **one source of truth**.
@@ -30,7 +30,7 @@ is in the same menu.
 ## Architecture
 
 ```
-Website · Customer app · Staff UI · Link Assistant · WhatsApp · API/MCP
+Website · Customer app · Staff UI · Shipping OS Assistant · WhatsApp · API/MCP
                                   ↓
              Services  (business logic + authorization via roles)
                                   ↓
