@@ -29,7 +29,7 @@ export default function WarehousePage() {
   const storage = svc.storageQueue().filter((x) => x.storage.daysOver > 0);
   const [tab, setTab] = useState<Tab>("dock");
   const tabs: [Tab, string, number][] = [
-    ["dock", "At the dock", q.atDock.length],
+    ["dock", "Dock & arriving", q.atDock.length + q.arriving.length],
     ["warehouse", "On the shelves", q.atWarehouse.length],
     ["attention", "Needs attention", q.needsAttention.length],
     ["send", "Ready to send", q.readyToSend.length],

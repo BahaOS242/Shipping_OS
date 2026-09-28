@@ -50,6 +50,7 @@ const pkgSummary = (p: ReturnType<typeof svc.getPackage>) => ({
   shipmentId: p.shipmentId,
   hasReceipt: !!p.purchaseInvoiceId,
   billableWeight: p.billableWeight,
+  receivedAt: p.storage.receivedAt,
 });
 
 export const TOOLS: ToolDef[] = [

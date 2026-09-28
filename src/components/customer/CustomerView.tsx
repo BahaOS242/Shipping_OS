@@ -17,7 +17,7 @@ export function CustomerView({ title, children }: { title: string; children: (me
             <>
               {s.role !== "customer" && (
                 <p className="mb-5 rounded-2xl bg-sun-50 px-4 py-3 text-sm font-semibold text-sun-700 ring-1 ring-sun-300">
-                  👀 Staff preview: you're seeing {svc.customerName(me)}&apos;s screens. Actions run with your staff permissions.
+                  👀 Staff preview: you&apos;re seeing {svc.customerName(me)}&apos;s screens. Actions run with your staff permissions.
                 </p>
               )}
               {children(me, svc.currentActor())}

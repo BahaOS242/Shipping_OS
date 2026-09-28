@@ -20,7 +20,7 @@ export function StatTile({ label, value, sub, icon, tone = "neutral", href }: { 
       <p className="flex items-center gap-2 text-sm font-bold text-ink-soft">
         {icon && <span aria-hidden>{icon}</span>} {label}
       </p>
-      <p className={`mt-1.5 text-2xl font-black tabular-nums sm:text-3xl ${tone === "alert" ? "text-coral-700" : ""}`}>{value}</p>
+      <p className={`mt-1.5 break-words text-2xl font-black tabular-nums sm:text-3xl ${tone === "alert" ? "text-coral-700" : ""}`}>{value}</p>
       {sub && <p className="text-sm text-ink-mute">{sub}</p>}
     </>
   );

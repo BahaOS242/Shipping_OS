@@ -27,8 +27,8 @@ export default function DeliveryPage() {
   const [done, setDone] = useState<Delivery | null>(null);
   const [fail, setFail] = useState<Delivery | null>(null);
   const [proof, setProof] = useState<Delivery | null>(null);
-  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-  const [form, setForm] = useState({ date: tomorrow, from: "10:00", to: "13:00", driver: svc.DRIVERS[0], route: "Route A" });
+  const [now] = useState(() => Date.now());
+  const [form, setForm] = useState(() => ({ date: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10), from: "10:00", to: "13:00", driver: svc.DRIVERS[0], route: "Route A" }));
   const [who, setWho] = useState("");
   const [reason, setReason] = useState("Nobody home");
   const all = svc.listDeliveries();
@@ -73,7 +73,7 @@ export default function DeliveryPage() {
               <ul className="divide-y divide-[#eef1f4]">
                 {inbound.map((s) => {
                   const v = svc.getVoyage(s.voyageId);
-                  const late = v && new Date(v.arrivesAt).getTime() < Date.now();
+                  const late = v && new Date(v.arrivesAt).getTime() < now;
                   return (
                     <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                       <span><ShipmentLink id={s.id} /> · <CustomerLink id={s.customerId} /> · {s.packageIds.length} pcs → {svc.getDestination(s.destinationId).name}<span className={`block ${late ? "font-bold text-coral-700" : "text-ink-soft"}`}>{v?.label ?? "Trip"} · due {fmtDate(v?.arrivesAt, { weekday: "short", month: "short", day: "numeric" })}{late ? " · late" : ""}</span></span>

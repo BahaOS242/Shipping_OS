@@ -33,7 +33,7 @@ function Receipts() {
                 <h1 className="text-4xl font-black tracking-tight sm:text-5xl">My Receipts</h1>
                 <p className="mt-1 text-xl text-ink-soft">Upload the store receipt. We read it and link it to your package.</p>
               </header>
-              <Uploader actor={actor} customerId={me.id} packageId={sp.get("package") ?? undefined} onDone={(inv) => setFresh(inv)} />
+              <Uploader key={sp.get("package") ?? "none"} actor={actor} customerId={me.id} packageId={sp.get("package") ?? undefined} onDone={(inv) => setFresh(inv)} />
               {fresh && (
                 <div className="animate-rise rounded-2xl bg-white p-5 ring-2 ring-sea-200">
                   <p className="text-xl font-extrabold">{fresh.packageId ? "✅ Linked to your package" : "✅ We read it"}</p>

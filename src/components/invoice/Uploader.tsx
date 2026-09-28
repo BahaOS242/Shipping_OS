@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Actor, ID, PurchaseInvoice } from "@/domain/types";
 import * as svc from "@/services";
 import { Button } from "../ui/Button";
@@ -16,7 +16,6 @@ export function Uploader({ actor, customerId, packageId, onDone }: { actor: Acto
   const [file, setFile] = useState<File | null>(null);
   const [pkg, setPkg] = useState<string>(packageId ?? pkgs[0]?.id ?? "");
   const [step, setStep] = useState(-1);
-  useEffect(() => setPkg(packageId ?? pkgs[0]?.id ?? ""), [packageId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function start(name: string, type: "pdf" | "image") {
     setStep(0);

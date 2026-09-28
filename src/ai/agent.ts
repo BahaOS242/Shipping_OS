@@ -16,7 +16,7 @@ import { rulePlanner, type Intent, type Planner } from "./planner";
 import { runTool, type ToolContext, type ToolTrace } from "./tools";
 import type { AgentAction, AgentContext, AgentMessage, AgentReply, AgentRequest } from "./types";
 
-type Pkg = { id: string; merchant: string; itemName: string; status: string; statusTitle: string; explain: string; next: string; where: string; shipmentId?: string; hasReceipt: boolean };
+type Pkg = { id: string; merchant: string; itemName: string; status: string; statusTitle: string; explain: string; next: string; where: string; shipmentId?: string; hasReceipt: boolean; receivedAt?: string };
 
 const A = {
   another: { id: "menu", label: "Ask Another Question", icon: "💬" },
@@ -58,7 +58,8 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
         const match =
           (i.packageId && pkgs.find((p) => p.id === i.packageId)) ||
           (i.merchant && active.find((p) => p.merchant.toLowerCase().replace("’", "'").startsWith(i.merchant!))) ||
-          active.find((p) => p.status === "received") ||
+          // Default: the package that has been waiting at our warehouse the longest.
+          active.filter((p) => p.status === "received").sort((a, b) => (a.receivedAt ?? "").localeCompare(b.receivedAt ?? ""))[0] ||
           active[0] ||
           pkgs[0];
         if (!match) {

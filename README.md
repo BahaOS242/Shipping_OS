@@ -1,84 +1,125 @@
-# THE LINK — Logistics OS demo
+# THE LINK — Logistics OS (demo)
 
-> **From checkout to your doorstep. We handle the rest.**
+> **The digital logistics operating system connecting everything from checkout to your doorstep.**
+> BUY → SHIP → TRACK → RECEIVE
 
-An interactive product prototype for The Link Services (Bahamas). It shows how a customer
-buys something in the U.S., ships it, tracks it and receives it. The flow works the same way
-on the website, in an AI assistant, on WhatsApp and in the staff dashboard.
+A working prototype of The Link Services' customer platform **and** its internal
+operations — customer app, warehouse, customs, accounting, delivery, claims,
+support, procurement, analytics, AI assistant and WhatsApp — all reading and
+writing **one source of truth**.
 
-**Everything is demo data.** No real packages, prices, payments, addresses or WhatsApp messages.
+**DEMO MODE.** Every person, package, price, payment, message and customs
+decision is simulated. No real transactions happen.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
+npm run dev              # http://localhost:3000
 npm run build && npm start
-npm run typecheck
+npm run typecheck && npm run lint
+npm test                 # 30-step critical journey against the services (Node)
+node tests/ui-journey.mjs   # same journey through the browser UI (needs Playwright + running server)
 ```
 
-## Demo script
-
-| # | Screen | Where |
-|---|--------|-------|
-| 1 | "What are you trying to do?" | `/` |
-| 2 | I bought something → 3 packages | `/packages` |
-| 3 | Amazon → **We have it!** | `/packages/p_1001` |
-| 4 | Put my packages together → Done! 🎉 | `/packages/together` |
-| 5 | 20 lbs → Nassau → estimate | `/cost` |
-| 6 | Link Assistant: "Where's my package?" | `/help` |
-| 7 | Same answer on WhatsApp (toggle "webhook payloads") | `/help/whatsapp` |
-| 8 | Staff side: live conversation → package → **Message Customer** (it appears in the WhatsApp chat) | `/admin` |
-
-Demo actions (putting packages together, chats, staff messages) are kept in `localStorage`, so every
-screen tells the same story, including across browser tabs. The "Clear demo chat" link resets the chat.
+Use the **“Viewing as”** switcher in the black DEMO MODE bar to become a customer
+(Trevor, or the Island Hardware Co. business account) or a staff role
+(Warehouse, Customs, Accounting, Support, Manager, Admin). **Reset demo data**
+is in the same menu.
 
 ## Architecture
 
 ```
-Channel (web page · web chat · WhatsApp webhook · staff)
-   ↓
-AI Agent            src/lib/agent       planner → tools → plain-language reply
-   ↓
-Controlled Tools    src/lib/tools       JSON-schema tools, scoped to the signed-in customer
-   ↓
-The Link API        src/lib/api         the only business layer
-   ↓
-Repository          src/lib/data        MockRepository today → Postgres / warehouse system
+Website · Customer app · Staff UI · Link Assistant · WhatsApp · API/MCP
+                                  ↓
+             Services  (business logic + authorization via roles)
+                                  ↓
+            Event bus  →  audit log · timelines · notifications · WhatsApp/email (simulated)
+                                  ↓
+              Store  (demo: browser storage adapter  →  production: PostgreSQL)
 ```
 
-- The AI never touches the database. It can only call the tools in `src/lib/tools/registry.ts`.
-  Each tool takes its customer from `ToolContext`, which the channel sets. The model never chooses it,
-  so asking for someone else's package returns "Not your package".
-- Staff notes and "needs attention" flags are removed before data reaches customers or the AI
-  (`CustomerPackage`).
-- The agent is channel-agnostic: it returns `messages + actions + context + trace`.
-  Channel adapters render that reply for each channel. For example, `src/lib/channels/whatsapp.ts`
-  converts `**bold**` to `*bold*` and limits replies to 3 reply buttons of up to 20 characters.
-- The planner is swappable (`Planner` interface). Today it is a deterministic keyword planner,
-  so live demos behave predictably. Tomorrow it can be an LLM planner that picks tools from the same registry.
+```
+src/
+  domain/     types (entities), rates engine, billing & reconciliation, storage rules,
+              roles & permissions, plain-language status copy, receipt library
+  data/       store (one state, storage adapter), clock, reference data, seed
+  events/     event bus (EVENT_TYPES)
+  services/   packages · invoiceEngine · shipments(+customs) · billing · exceptions ·
+              delivery · claims · support · notifications · procurement · storage ·
+              warehouse · customers · customerActions · analytics · search · timeline · quotes · session
+  ai/         tools (controlled, customer-scoped) · planner · agent · whatsapp channel
+  app/        routes (customer/public under (site), operations at top level, api/)
+  components/ shell · ui kit · domain · customer · ops · invoice · chat · shipping · marketing
+```
 
-### Endpoints
+**How “one source of truth” works in the demo.** All entities live in one store.
+Only services change it, and every change emits an event. Screens subscribe and
+re-read through services, so a package received in `/warehouse` is instantly
+“We have it!” for the customer, “Received” in the warehouse queue, linked in
+customs, billable in accounting, answerable by the AI, and a message in the
+WhatsApp thread. On Vercel the server keeps no memory between requests, so the
+demo's storage adapter is the browser (it survives reloads, syncs across tabs, and
+**Reset demo data** restores it). The API routes use the same services on an
+in-memory copy. Production swaps the adapter for PostgreSQL. No screen code changes.
 
-| Route | Purpose |
-|-------|---------|
-| `POST /api/agent` | Web chat → agent |
-| `GET/POST /api/channels/whatsapp/webhook` | WhatsApp Cloud API webhook (verify + inbound). Demo mode returns the outbound payloads instead of sending them |
-| `GET /api/tools`, `POST /api/tools/:name` | Tool manifest / invoke |
-| `POST /api/mcp` | Minimal MCP-style JSON-RPC (`initialize`, `tools/list`, `tools/call`) |
+**The seed replays history.** Demo data isn't hand-typed. `src/data/seed.ts`
+runs a script of real actions (pre-alerts, receiving, invoices, consolidation,
+customs, departures, deliveries, payments, claims) through the services with a
+backdated clock. Every bill, exception, notification and timeline entry is
+therefore consistent by construction.
 
-### Tools
+## Routes
 
-`getCustomer · getPackages · getPackage · getShipment · calculateShipping · getLocations ·
-getShippingRules · createQuote · createSupportTicket · escalateToHuman`
+**Public:** `/` · `/how-it-works` · `/shipping-calculator` · `/business` · `/locations` ·
+`/locations/{nassau,abaco,exuma,family-islands}` · `/help` · SEO pages:
+`/shipping-to-bahamas` `/amazon-bahamas` `/us-address-bahamas` `/freight-forwarding-bahamas`
+`/air-freight-bahamas` `/ocean-freight-bahamas` `/shipping-to-exuma` `/shipping-to-abaco`
+`/shipping-to-family-islands` `/business-logistics-bahamas` `/commercial-freight-bahamas`
+`/package-consolidation-bahamas`. Redirects: `/shipping` `/package-forwarding` `/air-freight`
+`/ocean-freight` `/consolidation` `/family-islands` `/cost` `/account`.
 
-## Before production
+**Customer:** `/dashboard` (personal or business) · `/packages` · `/packages/[id]` ·
+`/packages/together` · `/packages/new` · `/shipments` · `/shipments/[id]` · `/invoices`
+(receipts) · `/payments` · `/claims` · `/claims/new` · `/support` · `/profile` ·
+`/notifications` · `/ship` · `/buy-for-me` · `/assistant` · `/whatsapp-demo`
 
-- Auth: customer login (web) and verified phone → customer mapping (WhatsApp). Replace `src/lib/auth.ts`.
-- `PostgresRepository` + migrations from `src/lib/types.ts`; integration with the warehouse system for package events.
-- Real rates table behind `getShippingRules()`. Demo prices are placeholders.
-- WhatsApp: Meta app, signature verification (`X-Hub-Signature-256`), template messages for proactive
-  notifications, persistent conversation store (replace `memoryConversationStore`).
-- Staff actions and the realtime inbox as real APIs (replace `src/lib/demo-store.ts`).
-- LLM planner with guardrails, evals and audit logging of every tool call. Rate limits on `/api/mcp`.
-- Payments provider, invoices and customs documents (duty/VAT).
+**Operations:** `/admin` · `/admin/search` · `/warehouse` · `/warehouse/scan` ·
+`/warehouse/packages/[id]` · `/exceptions` · `/customs` · `/customs/[id]` · `/accounting` ·
+`/accounting/bills/[id]` · `/accounting/invoices/[id]` · `/delivery` · `/claims` & `/support`
+(staff queue when viewing as staff) · `/customers` · `/customers/[id]` · `/procurement` · `/analytics`
+
+**API:** `POST /api/agent` · `GET/POST /api/channels/whatsapp/webhook` · `GET /api/tools` ·
+`POST /api/tools/:name` · `POST /api/mcp` (JSON-RPC: initialize, tools/list, tools/call)
+
+## Demo script (≈10 minutes)
+
+1. **Customer** (Trevor) → `/dashboard`: 3 packages, $82.03 balance, 2 actions needed.
+2. `/packages/new` → tell us an Amazon order is coming → `/invoices` → *Use a sample receipt* (simulated AI extraction, confidence per field, auto-linked).
+3. **Warehouse** → `/warehouse/scan` → type the tracking number → 9-step receiving wizard (auto-match, receipt found, weigh, measure → billable weight, photo, checks, destination).
+4. **Customer** → package shows “We have it!” → `/packages/together` → pick two → **Put These Together** (real shipment + bill).
+5. **Customs** → `/customs/[id]` → packet preview → *Request Review* (creates an exception) → `/exceptions` resolve → *Approve*.
+6. **Warehouse** → *Ready to send* → **Send** → customer gets notification + WhatsApp message.
+7. `/delivery` → *Mark arrived* → *Schedule* → *Dispatch* → *Delivered* (simulated proof).
+8. **Customer** → `/payments` → Pay Now (DEMO PAYMENT). **Accounting** → reconciliation shows *Matched*.
+9. **Manager** → `/admin` → search the package ID → everything connected + full timeline.
+10. `/assistant` and `/whatsapp-demo`: “Where's my package?”, “How much do I owe?”, “I was charged twice.”
+
+## Safety rules the code enforces
+
+- The AI calls **controlled tools only**. The tools call services with an AI actor scoped to one customer. The AI cannot pay, refund, approve customs, reconcile, hold packages or message other customers; its only write powers are opening help requests and saving quotes (`AI_WRITE_PERMISSIONS`).
+- Every mutating service checks permissions (`can` / `canActOn`), for example: only customs approves, only accounting accepts payment differences, customers only touch their own records.
+- Customs is labelled *Demo customs workflow — final clearance decisions remain with authorized personnel*. AI item flags say *AI-generated suggestion. Human review required.*
+
+## Before production (MVP)
+
+- **Data:** PostgreSQL schema from `src/domain/types.ts`, a repository adapter behind the store, migrations, and an event outbox for the bus.
+- **Auth:** real customer login plus verified WhatsApp numbers; staff SSO with the role model in `src/domain/roles.ts`.
+- **Invoice Engine:** real extraction (vision/PDF model) behind `uploadInvoice`, file storage, and a human review queue.
+- **Money:** payment provider (card/online) whose webhooks create payments; official rate cards per route/carrier replace `RATE_CARD`.
+- **WhatsApp:** Cloud API sender, signature verification (`X-Hub-Signature-256`), template messages, and a conversation store.
+- **Operations:** real scanner hardware/camera input, label printing, and carrier tracking webhooks.
+
+## Future (advanced)
+
+LLM planner behind the same `Planner` interface. A dedicated MCP server with OAuth. Broker/customs system integrations. Driver mobile app with real proof of delivery. Recurring business shipments and statements. Demand forecasting on the analytics data.

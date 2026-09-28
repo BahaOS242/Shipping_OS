@@ -29,7 +29,6 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
   const [bell, setBell] = useState(false);
   const [q, setQ] = useState("");
   const bellRef = useRef<HTMLDivElement>(null);
-  useEffect(() => setMenu(false), [pathname]);
   useEffect(() => {
     const close = (e: MouseEvent) => bellRef.current && !bellRef.current.contains(e.target as Node) && setBell(false);
     document.addEventListener("click", close);
@@ -43,14 +42,14 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
   const notes = live && team ? svc.listNotifications({ team, limit: 12 }) : [];
   const unread = notes.filter((n) => !n.read).length;
 
-  const Nav = () => (
+  const nav_ = (
     <ul className="space-y-0.5">
       {nav.map((n) => {
         const a = pathname === n.href || pathname.startsWith(n.href + "/");
         const count = queues && QUEUE_FOR[n.href] ? queues[QUEUE_FOR[n.href]] : n.href === "/exceptions" ? svc.listExceptions({ status: "active" }).length : undefined;
         return (
           <li key={n.href}>
-            <Link href={n.href} aria-current={a ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-[15px] font-semibold ${a ? "bg-ink text-white" : "text-ink-soft hover:bg-white"}`}>
+            <Link href={n.href} onClick={() => setMenu(false)} aria-current={a ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-[15px] font-semibold ${a ? "bg-ink text-white" : "text-ink-soft hover:bg-white"}`}>
               <span><span aria-hidden className="mr-2">{n.icon}</span>{n.label}</span>
               {!!count && <span className={`rounded-full px-2 text-xs font-black ${a ? "bg-white/20" : "bg-coral-50 text-coral-700"}`}>{count}</span>}
             </Link>
@@ -92,7 +91,7 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
                   {notes.length === 0 && <li className="px-4 py-6 text-center text-ink-mute">Nothing new.</li>}
                   {notes.map((n) => (
                     <li key={n.id}>
-                      <Link href={n.href ?? "#"} onClick={() => { svc.markRead([n.id]); setBell(false); }} className={`block px-4 py-2.5 text-sm hover:bg-[#f7f9fa] ${n.read ? "" : "bg-sea-50/50"}`}>
+                      <Link href={n.href ?? "/exceptions"} onClick={() => { svc.markRead([n.id]); setBell(false); }} className={`block px-4 py-2.5 text-sm hover:bg-[#f7f9fa] ${n.read ? "" : "bg-sea-50/50"}`}>
                         <p className="font-bold">{n.icon} {n.title}</p>
                         <p className="line-clamp-2 text-ink-soft">{n.body}</p>
                         <p className="text-xs text-ink-mute"><Ago iso={n.at} /></p>
@@ -108,7 +107,7 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
       <div className="mx-auto flex max-w-[1400px]">
         <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-[#e3e7ec] px-3 py-5 lg:block">
           {role && <p className="mb-3 px-3 text-xs font-bold uppercase tracking-wider text-ink-mute">{ROLE_INFO[role].icon} {ROLE_INFO[role].label}</p>}
-          <Nav />
+          {nav_}
           <Link href="/" className="mt-6 block rounded-xl px-3 py-2 text-sm font-semibold text-sea-700 hover:bg-white">↗ Customer website</Link>
         </aside>
         {menu && (
@@ -116,7 +115,7 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
             <div className="absolute inset-0 bg-ink/40" />
             <nav aria-label="Operations" className="absolute left-0 top-0 h-full w-72 overflow-y-auto bg-[#f4f6f8] p-4" onClick={(e) => e.stopPropagation()}>
               <Logo href={role ? ROLE_INFO[role].home : "/admin"} suffix="Ops" />
-              <div className="mt-5"><Nav /></div>
+              <div className="mt-5">{nav_}</div>
               <Link href="/" className="mt-6 block px-3 text-sm font-semibold text-sea-700">↗ Customer website</Link>
             </nav>
           </div>

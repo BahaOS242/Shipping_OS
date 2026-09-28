@@ -24,7 +24,7 @@ export default function NotificationsPage() {
               <ul className="space-y-2">
                 {list.map((n) => (
                   <li key={n.id}>
-                    <Link href={n.href ?? "#"} onClick={() => svc.markRead([n.id])} className={`flex gap-4 rounded-2xl p-4 ring-1 ${n.read ? "bg-white ring-sand-200" : "bg-sea-50 ring-sea-200"}`}>
+                    <Link href={n.href ?? "/dashboard"} onClick={() => svc.markRead([n.id])} className={`flex gap-4 rounded-2xl p-4 ring-1 ${n.read ? "bg-white ring-sand-200" : "bg-sea-50 ring-sea-200"}`}>
                       <span aria-hidden className="text-3xl">{n.icon}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-lg font-extrabold">{n.title}{!n.read && <span className="ml-2 rounded-full bg-coral-500 px-2 text-xs text-white">New</span>}</span>

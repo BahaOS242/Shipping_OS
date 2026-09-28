@@ -39,11 +39,12 @@ function Accounting() {
   const [ref, setRef] = useState("");
   const [accept, setAccept] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [now] = useState(() => Date.now());
 
   const recon = svc.reconciliationRows();
   const invoices = svc.listPurchaseInvoices();
   const payments = [...svc.listPayments()];
-  const sinceMs = f.since ? Date.now() - Number(f.since) * 86_400_000 : 0;
+  const sinceMs = f.since ? now - Number(f.since) * 86_400_000 : 0;
   const bills = svc.listBills().filter((b) =>
     (!f.customer || b.customerId === f.customer) && (!f.status || b.status === f.status) && (!f.shipment || (b.shipmentId ?? "").includes(f.shipment.toUpperCase())) &&
     (!f.dest || svc.findShipment(b.shipmentId)?.destinationId === f.dest) && new Date(b.issuedAt ?? b.createdAt).getTime() >= sinceMs,

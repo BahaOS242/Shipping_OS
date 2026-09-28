@@ -9,7 +9,7 @@ import { BillLink, CustomerLink, PackageLink, ReceiptLink, ShipmentLink } from "
 import { Btn, OpsPage } from "@/components/ops/OpsPage";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
-import { Section, StatTile } from "@/components/ui/Section";
+import { Section } from "@/components/ui/Section";
 import { Ago, fmtDateTime } from "@/components/ui/Time";
 import { useAction } from "@/components/ui/Toast";
 import { EXCEPTION_CATALOG, EXCEPTION_STATUS_COPY, SEVERITY_COPY, TEAM_LABEL } from "@/domain/copy";

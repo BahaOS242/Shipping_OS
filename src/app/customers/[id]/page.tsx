@@ -2,6 +2,7 @@
 
 import { useLive } from "@/data/useLive";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { Activity } from "@/components/domain/Activity";
 import { BillPill, ClaimPill, ExStatusPill, PackagePill, ReceiptPill, ShipmentPill } from "@/components/domain/Status";
@@ -25,6 +26,7 @@ export default function Customer360({ params }: { params: Promise<{ id: string }
   useLive();
   const { id } = use(params);
   const run = useAction();
+  const router = useRouter();
   const actor = svc.currentActor();
   const [tab, setTab] = useState<Tab>("timeline");
   const [msg, setMsg] = useState(false);
@@ -47,9 +49,9 @@ export default function Customer360({ params }: { params: Promise<{ id: string }
       eyebrow={<Link href="/customers" className="text-sea-700">← Customers</Link>}
       title={svc.customerName(c)}
       sub={`${c.accountNumber} · ${c.type === "business" ? `🏢 Business (${c.firstName} ${c.lastName})` : "Personal"} · ${c.phone} · ${c.email}`}
-      actions={<><Btn tone="light" onClick={() => setMsg(true)}>💬 Message on WhatsApp</Btn><Btn tone="light" onClick={() => { svc.switchCustomer(c.id); window.location.href = "/dashboard"; }}>👀 View as customer</Btn></>}
+      actions={<><Btn tone="light" onClick={() => setMsg(true)}>💬 Message on WhatsApp</Btn><Btn tone="light" onClick={() => { svc.switchCustomer(c.id); router.push("/dashboard"); }}>👀 View as customer</Btn></>}
     >
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Customer since" value={fmtDate(c.createdAt, { month: "short", year: "numeric" })} />
         <StatTile label="Packages" value={st.packages} sub={`${st.activePackages} active`} />
         <StatTile label="Shipments" value={st.shipments} />

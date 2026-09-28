@@ -39,13 +39,13 @@ export default function AdminPage() {
         <Input id="admin-q" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search customer, TL-PKG-10474, TL-SHP-…, invoice, order or tracking number" className="!min-h-14 !text-base" />
         <button className="min-h-14 rounded-xl bg-ink px-5 font-bold text-white">Search</button>
       </form>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile icon="📥" label="Received today" value={ops.receivedToday} href="/warehouse" />
         <StatTile icon="🛫" label="Ready for shipment" value={ops.readyForShipment} href="/warehouse" />
         <StatTile icon="✈️" label="In transit" value={ops.inTransit} sub={`${ops.inTransitPackages} packages`} href="/customs" />
         <StatTile icon="⚠" label="Needs attention" value={ops.openExceptions} sub={`${ops.criticalExceptions} high/critical`} tone="alert" href="/exceptions" />
         <StatTile icon="💵" label="Revenue (30d)" value={fmtUsd(ops.revenue30)} sub="collected, demo" href="/analytics" />
-        <StatTile icon="⚑" label="Open exceptions" value={ops.openExceptions} href="/exceptions" />
+        <StatTile icon="📋" label="Awaiting customs" value={ops.awaitingCustoms} href="/customs" />
         <StatTile icon="🛟" label="Open claims" value={ops.openClaims} href="/claims" />
         <StatTile icon="🧾" label="Pending payments" value={fmtUsd(ops.pendingPayments)} href="/accounting?tab=bills" />
       </div>
