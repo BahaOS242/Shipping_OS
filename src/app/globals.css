@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Ink */
+  --color-ink: #0f1d2b;
+  --color-ink-soft: #3d4b5c;
+  --color-ink-mute: #6b7787;
+
+  /* Sand backgrounds */
+  --color-sand-50: #fdfbf7;
+  --color-sand-100: #f8f3ea;
+  --color-sand-200: #efe6d6;
+
+  /* Sea — Bahamian aquamarine */
+  --color-sea-50: #e8f7f8;
+  --color-sea-100: #c9ecef;
+  --color-sea-200: #9ddbe0;
+  --color-sea-400: #2fb3bf;
+  --color-sea-500: #0e9aa7;
+  --color-sea-600: #0a7f8b;
+  --color-sea-700: #086670;
+  --color-sea-800: #0a5058;
+  --color-sea-900: #0b3b41;
+
+  /* Sun — flag gold */
+  --color-sun-50: #fff9e6;
+  --color-sun-100: #fff0c2;
+  --color-sun-300: #ffd866;
+  --color-sun-400: #ffc72c;
+  --color-sun-500: #f0b400;
+  --color-sun-700: #7a5a00;
+
+  /* Coral — attention */
+  --color-coral-50: #fff1ef;
+  --color-coral-100: #ffdcd7;
+  --color-coral-500: #e5533f;
+  --color-coral-700: #a3321f;
+
+  /* WhatsApp demo */
+  --color-wa-green: #25d366;
+  --color-wa-dark: #075e54;
+  --color-wa-teal: #128c7e;
+  --color-wa-bubble: #d9fdd3;
+  --color-wa-bg: #efeae2;
+
+  --radius-card: 1.5rem;
+  --shadow-card: 0 1px 2px rgb(15 29 43 / 0.04), 0 8px 24px -12px rgb(15 29 43 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(15 29 43 / 0.05), 0 16px 40px -16px rgb(15 29 43 / 0.22);
+
+  --animate-rise: rise 0.35s ease-out both;
+  --animate-pop: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-sand-50);
+  color: var(--color-ink);
+}
+
+/* Clear, thick focus rings for keyboard users. */
+:focus-visible {
+  outline: 3px solid var(--color-sun-400);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
