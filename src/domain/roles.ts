@@ -86,16 +86,16 @@ export const ROLE_INFO: Record<Role, { label: string; icon: string; home: string
 /** Which operations areas each role sees in navigation. */
 export const OPS_NAV: { href: string; label: string; icon: string; roles: Role[] }[] = [
   { href: "/admin", label: "Overview", icon: "📊", roles: ["manager", "admin"] },
-  { href: "/warehouse", label: "Warehouse", icon: "🏭", roles: ["warehouse", "manager", "admin"] },
+  { href: "/warehouse", label: "Warehouse", icon: "🏭", module: "warehouse", roles: ["warehouse", "manager", "admin"] },
   { href: "/exceptions", label: "Exceptions", icon: "⚠", roles: ["warehouse", "customs", "accounting", "support", "manager", "admin"] },
   { href: "/customs", label: "Customs", icon: "📋", roles: ["customs", "manager", "admin"] },
-  { href: "/accounting", label: "Accounting", icon: "🧮", roles: ["accounting", "manager", "admin"] },
-  { href: "/delivery", label: "Delivery", icon: "🚚", roles: ["warehouse", "manager", "admin"] },
+  { href: "/accounting", label: "Accounting", icon: "🧮", module: "billing", roles: ["accounting", "manager", "admin"] },
+  { href: "/delivery", label: "Delivery", icon: "🚚", module: "delivery", roles: ["warehouse", "manager", "admin"] },
   { href: "/claims", label: "Claims", icon: "🛟", roles: ["support", "warehouse", "accounting", "manager", "admin"] },
   { href: "/support", label: "Support", icon: "🎧", roles: ["support", "manager", "admin"] },
-  { href: "/customers", label: "Customers", icon: "👥", roles: ["support", "accounting", "manager", "admin", "warehouse", "customs"] },
+  { href: "/customers", label: "Customers", icon: "👥", module: "customers", roles: ["support", "accounting", "manager", "admin", "warehouse", "customs"] },
   { href: "/procurement", label: "Procurement", icon: "🛒", roles: ["manager", "admin"] },
-  { href: "/analytics", label: "Analytics", icon: "📈", roles: ["manager", "admin"] },\n  { href: "/admin/modules", label: "Platform", icon: "🧩", roles: ["manager", "admin"] },
+  { href: "/analytics", label: "Analytics", icon: "📈", module: "analytics", roles: ["manager", "admin"] },\n  { href: "/admin/modules", label: "Platform", icon: "🧩", roles: ["manager", "admin"] },
 ];
 
 export function canSeeOpsPath(role: Role, pathname: string) {
