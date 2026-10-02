@@ -84,7 +84,7 @@ export const ROLE_INFO: Record<Role, { label: string; icon: string; home: string
 };
 
 /** Which operations areas each role sees in navigation. */
-export const OPS_NAV: { href: string; label: string; icon: string; roles: Role[] }[] = [
+export const OPS_NAV: { href: string; label: string; icon: string; roles: Role[]; module?: import("./modules").ModuleId }[] = [
   { href: "/admin", label: "Overview", icon: "📊", roles: ["manager", "admin"] },
   { href: "/warehouse", label: "Warehouse", icon: "🏭", module: "warehouse", roles: ["warehouse", "manager", "admin"] },
   { href: "/exceptions", label: "Exceptions", icon: "⚠", roles: ["warehouse", "customs", "accounting", "support", "manager", "admin"] },
