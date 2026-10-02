@@ -32,11 +32,12 @@ export type Permission =
   | "booking.manage"
   | "manifest.manage"
   | "org.manage"
+  | "operations.read"
   | "analytics.read"
   | "admin.search"
   | "demo.reset";
 
-const STAFF_BASE: Permission[] = ["customer.read_any", "exception.manage", "admin.search"];
+const STAFF_BASE: Permission[] = ["customer.read_any", "operations.read", "exception.manage", "admin.search"];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   customer: ["customer.self"],

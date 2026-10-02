@@ -36,6 +36,8 @@ export type Organization = {
   contact: { email?: string; phone?: string; address?: string };
   /** Optional dashboard override; defaults to the business type's emphasis. */
   dashboard?: WidgetId[];
+  /** Inbound channel identities. A WhatsApp webhook is routed by the business number it was sent to. */
+  channels?: { whatsappPhoneNumberId?: string };
   createdAt: ISODate;
 };
 
@@ -528,6 +530,8 @@ export type Conversation = TenantOwned & {
   intents: string[];
   escalated: boolean;
   ticketId?: ID;
+  /** Channel memory between assistant turns. Lives in the tenant's conversation, never in a process-wide cache. */
+  agentContext?: Record<string, unknown>;
   updatedAt: ISODate;
 };
 
@@ -594,6 +598,26 @@ export type Actor = {
   customerId?: ID;
   /** Staff user ID (membership) when known. */
   userId?: ID;
+  /** Set when an AI tool acts on this user's behalf (same permissions, audited as AI). */
+  via?: "ai";
+};
+
+/**
+ * A consequential write an AI tool prepared but did not perform. Only the same
+ * user, in the same organization, can confirm it; confirmation re-runs every
+ * authorization check and then calls the real service.
+ */
+export type AiProposal = TenantOwned & {
+  id: ID;
+  tool: string;
+  input: Record<string, unknown>;
+  preview: { title: string; lines: string[] };
+  proposedBy: { kind: Actor["kind"]; name: string; userId?: ID; customerId?: ID };
+  status: "pending" | "confirmed" | "cancelled" | "expired" | "failed";
+  createdAt: ISODate;
+  expiresAt: ISODate;
+  resolvedAt?: ISODate;
+  error?: string;
 };
 
 export type AuditEvent = TenantOwned & {

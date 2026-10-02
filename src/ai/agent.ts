@@ -10,10 +10,9 @@
  */
 import { fmtLb, fmtUsd } from "@/domain/rates";
 import type { DestinationId } from "@/domain/types";
-import * as svc from "@/services";
 import { GREETING, MAIN_MENU } from "./copy";
 import { rulePlanner, type Intent, type Planner } from "./planner";
-import { runTool, type ToolContext, type ToolTrace } from "./tools";
+import { customerToolContext, runTool, type ToolTrace } from "./executor";
 import type { AgentAction, AgentContext, AgentMessage, AgentReply, AgentRequest } from "./types";
 
 type Pkg = { id: string; merchant: string; itemName: string; status: string; statusTitle: string; explain: string; next: string; where: string; shipmentId?: string; hasReceipt: boolean; receivedAt?: string };
@@ -35,10 +34,13 @@ const SENTENCE: Record<string, string> = {
 
 export async function handleAgentRequest(req: AgentRequest, planner: Planner = rulePlanner): Promise<AgentReply> {
   const context: AgentContext = { ...(req.context ?? {}) };
-  const ctx: ToolContext = { customerId: req.customerId, channel: req.channel };
+  // Organization + customer come from the authenticated request; the agent can only act through tools.
+  const ctx = customerToolContext(req.customerId, req.channel);
   const trace: ToolTrace[] = [];
   const intent = planner.plan(req.input, context);
   const tool = <T,>(name: string, input: Record<string, unknown> = {}) => runTool<T>(name, input, ctx, trace);
+  let islands: { id: string; name: string }[] | undefined;
+  const islandName = (id: string) => (islands ??= tool<{ id: string; name: string }[]>("getIslands")).find((d) => d.id === id)?.name ?? id;
   const reply = (messages: AgentMessage[], actions: AgentAction[], next: AgentContext = {}): AgentReply => ({
     intent: intent.name,
     messages,
@@ -83,15 +85,15 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
         if (!i.destinationId) {
           return reply(
             [{ text: "I can help estimate that.\n\n**Where are you sending it?**" }],
-            (["nassau", "abaco", "exuma"] as DestinationId[]).map((id) => ({ id: `quote:${i.weight}:${id}`, label: svc.getDestination(id).name, icon: "🇧🇸" })),
+            (["nassau", "abaco", "exuma"] as DestinationId[]).map((id) => ({ id: `quote:${i.weight}:${id}`, label: islandName(id), icon: "🇧🇸" })),
             { awaiting: "destination", weight: i.weight },
           );
         }
-        if (!i.weight) return reply([{ text: `Going to **${svc.getDestination(i.destinationId).name}**. 👍\n\n**How heavy is it?**` }], weights.map((w) => ({ id: `quote:${w}:${i.destinationId}`, label: `${w} lbs` })), { awaiting: "weight", destinationId: i.destinationId });
+        if (!i.weight) return reply([{ text: `Going to **${islandName(i.destinationId)}**. 👍\n\n**How heavy is it?**` }], weights.map((w) => ({ id: `quote:${w}:${i.destinationId}`, label: `${w} lbs` })), { awaiting: "weight", destinationId: i.destinationId });
         type Est = { total: number; transit: string; billableWeight: number };
         const air = tool<Est>("calculateShipping", { destinationId: i.destinationId, weight: i.weight, service: "air" });
         const ocean = tool<Est>("calculateShipping", { destinationId: i.destinationId, weight: i.weight, service: "ocean" });
-        const place = svc.getDestination(i.destinationId).name;
+        const place = islandName(i.destinationId);
         return reply(
           [{
             text: `To send **${fmtLb(i.weight)}** to **${place}**:\n\n✈️ Faster (air): about **${fmtUsd(air.total)}** (${air.transit})\n🚢 Bigger / slower (ocean): about **${fmtUsd(ocean.total)}** (${ocean.transit})\n\nThis is a **demo estimate**. Your final price depends on the real weight and size.`,
@@ -124,8 +126,7 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
         const byBill = new Map<string, typeof pays>();
         pays.forEach((p) => p.billId && byBill.set(p.billId, [...(byBill.get(p.billId) ?? []), p]));
         const dup = [...byBill.entries()].find(([, ps]) => ps.length > 1 && ps.some((x, _, arr) => arr.filter((y) => y.amount === x.amount).length > 1));
-        const t = tool<{ id: string }>("createSupportTicket", { subject: dup ? "Customer says they were charged twice" : "Billing question", message: i.text, billId: dup?.[0] });
-        svc.markEscalated(req.customerId, req.channel === "whatsapp" ? "whatsapp" : "web", t.id);
+        const t = tool<{ id: string }>("createSupportTicket", { subject: dup ? "Customer says they were charged twice" : "Billing question", message: i.text, billId: dup?.[0], escalate: true });
         return {
           ...reply(
             [{ text: dup ? `I can see two payment records for bill **${dup[0]}** (${dup[1].map((p) => fmtUsd(p.amount)).join(" and ")}). I'm going to send this to our support team so they can review it.\n\nYour request number is **${t.id}**.` : `I'm sorry about that. I've sent this to our support team so a person can check your bill.\n\nYour request number is **${t.id}**.` }],
@@ -166,8 +167,8 @@ export async function handleAgentRequest(req: AgentRequest, planner: Planner = r
         return reply([{ text: "Yes! We can **put your packages together** so they travel as one. 📦➕📦\n\nIt's often cheaper than sending them one by one." }], [{ id: "link:/packages/together", label: "Put Them Together", icon: "📦", href: "/packages/together" }, A.another]);
 
       case "locations": {
-        const c = svc.getCustomer(req.customerId);
-        const locs = tool<{ name: string; addressLines: string[]; hours: string; kind: string }[]>("getLocations", { destinationId: c.homeDestination }).filter((l) => l.kind !== "us_warehouse");
+        const c = tool<{ homeDestinationId: string }>("getCustomer");
+        const locs = tool<{ name: string; addressLines: string[]; hours: string; kind: string }[]>("getLocations", { destinationId: c.homeDestinationId }).filter((l) => l.kind !== "us_warehouse");
         return reply([{ text: `Here's where you can get your packages:\n\n${locs.map((l) => `📍 **${l.name}**\n${l.addressLines.join(", ")}\n🕘 ${l.hours}`).join("\n\n")}\n\n_(Demo locations.)_` }], [{ id: "link:/locations", label: "All locations", icon: "📍", href: "/locations" }, A.another]);
       }
 

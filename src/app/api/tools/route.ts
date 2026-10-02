@@ -1,4 +1,4 @@
-import { toolManifest } from "@/ai/tools";
-import { withApiTenant } from "../_demo";
+import { toolManifest } from "@/ai/executor";
+import { withRequestContext } from "@/server/requestContext";
 
-export const GET = (req: Request) => withApiTenant(req, ["api"], (org) => Response.json({ mode: "demo", organization: org.slug, tools: toolManifest() }));
+export const GET = (req: Request) => withRequestContext(req, ["api"], ({ organization, source }) => Response.json({ mode: source, organization: organization.slug, tools: toolManifest() }));

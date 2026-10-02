@@ -94,6 +94,39 @@ export const MODULE_CATEGORIES: { id: ModuleCategory; label: string }[] = [
 
 export class InvalidModuleError extends Error {}
 
+/**
+ * Structural problems in a module registry: dependencies on unknown modules,
+ * self-dependencies and cycles (reported as a path). Generic over any registry,
+ * so the same check guards the real one at load and is testable with fakes.
+ */
+export function registryProblems(registry: Record<string, { dependencies: readonly string[] }>): string[] {
+  const problems: string[] = [];
+  const ids = Object.keys(registry);
+  for (const id of ids) {
+    for (const d of registry[id].dependencies) {
+      if (d === id) problems.push(`${id} depends on itself`);
+      else if (!registry[d]) problems.push(`${id} depends on unknown module ${d}`);
+    }
+  }
+  const state = new Map<string, "visiting" | "done">();
+  const visit = (id: string, path: string[]) => {
+    if (state.get(id) === "done" || !registry[id]) return;
+    if (state.get(id) === "visiting") {
+      problems.push(`cycle: ${[...path.slice(path.indexOf(id)), id].join(" → ")}`);
+      return;
+    }
+    state.set(id, "visiting");
+    for (const d of registry[id].dependencies) if (d !== id) visit(d, [...path, id]);
+    state.set(id, "done");
+  };
+  ids.forEach((id) => visit(id, []));
+  return problems;
+}
+
+// The real registry must be a valid DAG — fail fast at import, not at runtime.
+const REGISTRY_PROBLEMS = registryProblems(MODULES);
+if (REGISTRY_PROBLEMS.length) throw new Error(`Invalid module registry: ${REGISTRY_PROBLEMS.join("; ")}`);
+
 export const isModuleId = (x: unknown): x is ModuleId => typeof x === "string" && (MODULE_IDS as readonly string[]).includes(x);
 
 /** Every module `id` needs, transitively (not including `id`). */

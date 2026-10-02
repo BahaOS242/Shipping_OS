@@ -1,5 +1,6 @@
-import { TOOLS, runTool, toolManifest } from "@/ai/tools";
-import { demoCustomerId, withApiTenant } from "../_demo";
+import { TOOLS, customerToolContext, runTool, toolManifest } from "@/ai/executor";
+import type { Actor } from "@/domain/types";
+import { withRequestContext } from "@/server/requestContext";
 
 /**
  * MCP-ready JSON-RPC endpoint (DEMO). The app does not depend on MCP — this
@@ -14,10 +15,10 @@ export const GET = () => Response.json({ name: "the-link", mode: "demo", methods
 
 export async function POST(req: Request) {
   const rpc = (await req.json().catch(() => ({}))) as Rpc;
-  return withApiTenant(req, ["api"], () => handle(rpc));
+  return withRequestContext(req, ["api"], ({ actor }) => handle(rpc, actor));
 }
 
-function handle(rpc: Rpc): Response {
+function handle(rpc: Rpc, actor: Actor): Response {
   switch (rpc.method) {
     case "initialize":
       return ok(rpc.id, { protocolVersion: "2025-06-18", serverInfo: { name: "the-link", version: "0.2.0-demo" }, capabilities: { tools: {} } });
@@ -30,7 +31,8 @@ function handle(rpc: Rpc): Response {
       const tool = TOOLS.find((t) => t.name === n || t.name.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`) === n);
       if (!tool) return fail(rpc.id, -32602, `Unknown tool ${n}`);
       try {
-        const out = runTool(tool.name, (rpc.params?.arguments as Record<string, unknown>) ?? {}, { customerId: demoCustomerId(), channel: "web" });
+        if (actor.kind !== "customer" || !actor.customerId) return fail(rpc.id, -32001, "Customer tools need a signed-in customer.");
+        const out = runTool(tool.name, (rpc.params?.arguments as Record<string, unknown>) ?? {}, customerToolContext(actor.customerId, "web"));
         return ok(rpc.id, { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out });
       } catch (e) {
         return ok(rpc.id, { content: [{ type: "text", text: (e as Error).message }], isError: true });

@@ -21,6 +21,7 @@
  *  - PRODUCTION: a PostgreSQL-backed repository behind the same services.
  */
 import type {
+  AiProposal,
   AuditEvent,
   Bill,
   Booking,
@@ -51,7 +52,7 @@ import type {
   Voyage,
 } from "@/domain/types";
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 const STORAGE_KEY = "thelink-os";
 
 /** Mock authentication: who is signed in, to which organization. */
@@ -85,6 +86,7 @@ export type TenantState = {
   events: AuditEvent[];
   procurements: Procurement[];
   quotes: Quote[];
+  aiProposals: AiProposal[];
 };
 
 /** What services see. Kept as an alias so existing code reads naturally. */
@@ -128,6 +130,7 @@ export function emptyTenant(organizationId: ID): TenantState {
     events: [],
     procurements: [],
     quotes: [],
+    aiProposals: [],
   };
 }
 
@@ -141,23 +144,37 @@ export function registerSeeder(fn: Seeder) {
 let state: PlatformState | null = null;
 
 /**
- * Where the active tenant scope lives. Default: a synchronous stack (browser,
- * tests, seed). The server swaps in AsyncLocalStorage so concurrent requests
- * never see each other's scope across `await`s (see app/api/_demo.ts).
+ * Where the active tenant scope lives.
+ *  - Default: a synchronous stack (browser, seed, sequential tests). It refuses
+ *    async callbacks, because a stack can't follow work across `await`s.
+ *  - Server: `installAsyncTenantScope()` (src/server/tenantScope.ts) swaps in
+ *    AsyncLocalStorage, one context per request, and is STRICT: with no scope,
+ *    `tenantId()` throws instead of falling back to the demo session, so a
+ *    request can never silently act as some other organization.
  */
-export type TenantScopeProvider = { current(): ID | undefined; run<T>(organizationId: ID, fn: () => T): T };
+export type TenantScopeProvider = {
+  current(): ID | undefined;
+  run<T>(organizationId: ID, fn: () => T): T;
+  /** Strict providers have no fallback organization outside a scope. */
+  strict?: boolean;
+};
 const scopes: ID[] = [];
-let scopeProvider: TenantScopeProvider = {
+const stackProvider: TenantScopeProvider = {
   current: () => scopes.at(-1),
   run(organizationId, fn) {
     scopes.push(organizationId);
     try {
-      return fn();
+      const out = fn();
+      if (out && typeof (out as { then?: unknown }).then === "function") {
+        throw new TenantScopeError("Async work in withTenant() needs the request-scoped provider (installAsyncTenantScope).");
+      }
+      return out;
     } finally {
       scopes.pop();
     }
   },
 };
+let scopeProvider: TenantScopeProvider = stackProvider;
 export function setTenantScopeProvider(p: TenantScopeProvider) {
   scopeProvider = p;
 }
@@ -195,11 +212,14 @@ export function platform(): PlatformState {
 }
 
 /** The active organization: innermost withTenant() scope, else the session's. */
-export function tenantId(): ID {
-  return scopeProvider.current() ?? platform().session.organizationId;
-}
-
 export class TenantScopeError extends Error {}
+
+export function tenantId(): ID {
+  const scoped = scopeProvider.current();
+  if (scoped) return scoped;
+  if (scopeProvider.strict) throw new TenantScopeError("No organization in scope for this request.");
+  return platform().session.organizationId; // browser demo: the signed-in session
+}
 
 /** The active tenant's data partition. Everything tenant-owned is read through here. */
 export function db(): TenantState {

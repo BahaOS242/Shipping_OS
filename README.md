@@ -18,7 +18,7 @@ npm install
 npm run dev              # http://localhost:3000
 npm run build && npm start
 npm run typecheck && npm run lint
-npm test                 # 30-step critical journey + 32 platform tests (modules, tenancy, authorization)
+npm test                 # journey (30) + platform (32) + hardening (21) + concurrent isolation (9)
 node tests/ui-journey.mjs   # same journey through the browser UI (needs Playwright + running server)
 ```
 
@@ -113,8 +113,11 @@ therefore consistent by construction.
 
 **API:** `POST /api/agent` · `GET/POST /api/channels/whatsapp/webhook` · `GET /api/tools` ·
 `POST /api/tools/:name` · `POST /api/mcp` (JSON-RPC: initialize, tools/list, tools/call).
-Send `X-Organization: <slug>` (or `?org=<slug>`) to pick the organization. Routes return 403 when the
-organization doesn't have the module (`api` / `assistant`).
+In this demo build (`SHIPPING_OS_AUTH_MODE=demo`), `X-Organization: <slug>` (or `?org=<slug>`) is a
+**demo transport**: it picks the organization and acts as its demo customer. Responses carry
+`x-shipping-os-auth: demo`. In `session` mode, identity comes from authentication and the header only
+selects among the caller's memberships. WhatsApp webhooks are routed by the business number. Routes return
+403 when the organization lacks the module (`api` / `assistant`). See `docs/ARCHITECTURE.md` §11.
 
 ## Demo script (≈10 minutes)
 
@@ -131,6 +134,7 @@ organization doesn't have the module (`api` / `assistant`).
 
 ## Safety rules the code enforces
 
+- AI code can't touch the store (lint-enforced). It calls **declared tools only** (`src/ai/contract.ts`), and the executor checks organization, module and permission before the service runs. Consequential staff actions are proposals that only the same user can confirm.
 - The AI calls **controlled tools only**. The tools call services with an AI actor scoped to one customer. The AI cannot pay, refund, approve customs, reconcile, hold packages or message other customers; its only write powers are opening help requests and saving quotes (`AI_WRITE_PERMISSIONS`).
 - Every mutating service goes through `authorize()`: organization membership, module entitlement, then role permission (`can` / `canActOn`). For example, only customs approves, only accounting accepts payment differences, customers only touch their own records, and a user from one organization can never read or change another organization's records.
 - Customs is labelled *Demo customs workflow — final clearance decisions remain with authorized personnel*. AI item flags say *AI-generated suggestion. Human review required.*

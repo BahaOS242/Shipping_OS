@@ -12,7 +12,7 @@ import type { Actor, DestinationId, ID, Location, Organization, StaffUser } from
 import { emit } from "@/events/bus";
 import { BUSINESS_TYPES, isBusinessType, presetModules, type BusinessType } from "@/platform/businessTypes";
 import { WIDGET_IDS, widgetAvailable, type WidgetId } from "@/platform/dashboard";
-import { InvalidModuleError, MODULES, isModuleId, resolveModules, toggleModule, type ModuleId } from "@/platform/modules";
+import { InvalidModuleError, MODULES, isModuleId, resolveModules, toggleModule, validateModules, type ModuleId } from "@/platform/modules";
 import { BusinessError } from "./_shared";
 import { authorize, currentOrganization, getOrganization } from "./access";
 import { createCustomer } from "./customers";
@@ -21,6 +21,9 @@ import { createPort, createVessel } from "./network";
 export const DEFAULT_ORG_ID = "org_shipping_os";
 
 export const listOrganizations = () => platform().organizations;
+/** Which organization owns an inbound WhatsApp business number. */
+export const organizationForWhatsAppNumber = (phoneNumberId: string) => platform().organizations.find((o) => o.channels?.whatsappPhoneNumberId === phoneNumberId);
+
 export const getOrganizationBySlug = (slug: string) => platform().organizations.find((o) => o.slug === slug.trim().toLowerCase());
 export { currentOrganization, getOrganization };
 
@@ -104,20 +107,25 @@ function orgAdmin(actor: Actor) {
   return currentOrganization();
 }
 
-export function updateOrganizationProfile(actor: Actor, patch: { name?: string; branding?: Partial<Organization["branding"]>; contact?: Organization["contact"] }) {
+export function updateOrganizationProfile(actor: Actor, patch: { name?: string; branding?: Partial<Organization["branding"]>; contact?: Organization["contact"]; channels?: Organization["channels"] }) {
   const org = orgAdmin(actor);
+  const wa = patch.channels?.whatsappPhoneNumberId;
+  if (wa && platform().organizations.some((o) => o.id !== org.id && o.channels?.whatsappPhoneNumberId === wa)) throw new BusinessError("That WhatsApp number belongs to another organization.");
   if (patch.name !== undefined && !patch.name.trim()) throw new BusinessError("The business name can't be empty.");
   if (patch.branding?.primaryColor && !/^#[0-9a-f]{6}$/i.test(patch.branding.primaryColor)) throw new BusinessError("Use a hex color like #0a7f8b.");
   return mutatePlatform(() => {
     if (patch.name) org.name = patch.name.trim();
     if (patch.branding) org.branding = { ...org.branding, ...patch.branding };
     if (patch.contact) org.contact = { ...org.contact, ...patch.contact };
+    if (patch.channels) org.channels = { ...org.channels, ...patch.channels };
     emit("ORGANIZATION_UPDATED", { actor, refs: {}, summary: "Organization profile updated" });
     return org;
   });
 }
 
 function saveModules(actor: Actor, org: Organization, next: ModuleId[]) {
+  const problems = validateModules(next); // invariant: stored configurations are always dependency-complete
+  if (problems.length) throw new BusinessError(problems.join(" "));
   const before = new Set(org.modules);
   const added = next.filter((m) => !before.has(m));
   const removed = org.modules.filter((m) => !next.includes(m));
@@ -135,11 +143,19 @@ function saveModules(actor: Actor, org: Organization, next: ModuleId[]) {
   });
 }
 
-/** Replace the module list. Dependencies are added automatically; unknown modules are rejected. */
-export function setModules(actor: Actor, modules: string[]) {
+/**
+ * Replace the module list. Unknown modules are always rejected. By default
+ * dependencies are added automatically; `strict` rejects a list that is missing
+ * any (for API clients that must state the exact configuration).
+ */
+export function setModules(actor: Actor, modules: string[], opts: { strict?: boolean } = {}) {
   const org = orgAdmin(actor);
   const bad = modules.find((m) => !isModuleId(m));
   if (bad) throw new BusinessError(`Unknown module "${bad}".`);
+  if (opts.strict) {
+    const problems = validateModules(modules);
+    if (problems.length) throw new BusinessError(problems.join(" "));
+  }
   return saveModules(actor, org, resolveModules(modules));
 }
 

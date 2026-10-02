@@ -142,14 +142,104 @@ remain possible later, but aren't the default.
 
 ## 10. Known limitations (demo)
 
-* Auth is still mocked (organization switcher + role switcher). API routes pick the organization from
-  `X-Organization` / `?org=` and act as a demo customer. Production must derive both from a token.
+* Auth is still mocked in the UI (organization switcher + role switcher). For the API, see §11.1:
+  the demo transport is explicit and swappable for the session resolver.
 * Some customer-facing copy is forwarder-specific ("left Florida"), and staff deep links point at
   `/customs/[id]` for shipments. These should become per-organization copy and a neutral shipment page.
 * The public marketing pages and footer links (SEO pages, "Your U.S. address", …) are the original
   forwarder's content for every organization. Only the customer portal's logo, color and tagline are branded.
 * Islands (`Destination`) are seeded from the Bahamas template for every organization.
 * CSV import covers customers, vessels and ports. Rates, services, routes and existing shipments are next.
-* The WhatsApp conversation context cache is keyed by phone number, not by organization and phone.
 * Capacity is weight only (no volume or deck space). Bookings that are checked in heavier than booked are
   allowed if the trip has room for the difference.
+
+## 11. Hardening for the AI layer
+
+### 11.1 Organization context (production model)
+
+```
+Authenticated principal → Organization membership → Active organization
+  → Module entitlement → Role permission → Resource ownership → Service action
+```
+
+* `src/services/requestContext.ts`: `resolveActiveOrganization(principal, selected)` looks memberships up
+  server-side (`membershipsOf`). A client-supplied organization (header, subdomain) is only a **selection
+  among the principal's own memberships**. It can never grant access. No principal → 401. Several
+  memberships and no selection → 409 with the choices. Invited, unaccepted memberships don't count.
+* `src/server/requestContext.ts`: an `OrganizationContextResolver` interface with two implementations.
+  `sessionResolver` (production) authenticates via `setAuthenticator()` (plug in OAuth/session/JWT) and
+  then resolves membership. `demoResolver` is the **demo transport**: `X-Organization` / `?org=` act as
+  that organization's demo customer. It's selected by `SHIPPING_OS_AUTH_MODE` (`demo` is the default for
+  this demo build), and responses from it are labelled `x-shipping-os-auth: demo`. Routes only call
+  `withRequestContext(req, modules, handler)`. Replacing authentication touches the resolver, never a business service.
+* The WhatsApp webhook has no user. Its tenant is the organization that owns the business number
+  (`metadata.phone_number_id` → `Organization.channels.whatsappPhoneNumberId`, which must be unique). In
+  session mode, a number no organization owns is rejected.
+
+### 11.2 Request-scoped tenancy
+
+* The server installs `installAsyncTenantScope()`, which gives each request its own `AsyncLocalStorage`
+  context. It is **strict**: outside a request scope `tenantId()` throws instead of falling back to the
+  demo session. Work a request starts (timers, promises) finishes as that request's organization. A function
+  captured in one request runs as whichever organization calls it.
+* The synchronous stack provider (browser, seed) now refuses async callbacks. Async work must use the
+  request-scoped provider.
+* No process-wide per-tenant caches remain. Assistant memory and AI proposals live in each tenant's partition.
+
+### 11.3 AI boundary and tool contract
+
+```
+AI runtime → AI tool (src/ai/contract.ts) → executor (src/ai/executor.ts) → existing service
+          → organization authorization → role permission → business rules → store
+```
+
+* Lint rule: nothing in `src/ai/**` may import `@/data/store` or `@/data/seed*`. The agent and planner may
+  not import `@/services` at all; they act only through the executor.
+* Each tool declares: name, description, input schema, audience (customer | staff), module, permission,
+  read/write, confirmation, the service it calls, and audit behavior. `defineTools()` rejects inconsistent
+  contracts at load: writes must be audited, confirmation needs a preview, reads don't confirm, and no tool
+  may require a planned module.
+* Before the service runs, the executor checks: the schema; that the tool context's organization equals the
+  request scope; membership (`assertMember`); the module (`requireModule`); and the permission (`can`) or
+  customer ownership. It reuses the existing checks rather than adding a second authorization system. The
+  service then repeats its own checks.
+* Staff tools act **as the signed-in staff user** (`actor.via = "ai"`), with exactly that user's
+  organization, modules and permissions. Audit events show `via: "ai"`.
+* Customer tools act as an `ai` actor scoped to one customer. Their three writes (save quote, open
+  ticket, escalate) have no financial or operational consequence and run without confirmation. No tool
+  can pay, refund, reconcile, void or approve customs.
+
+### 11.4 Consequential actions
+
+Reads run automatically. Staff writes (`createBooking`, `closeManifest`, `assignShipmentToTrip`,
+`assignDriver`, `addCharge`, `sendCustomerMessage`) return a **proposal** with a preview built from
+service reads (e.g. "Close the manifest for MV Andros Runner · 3 shipments · 2,140 lb"). Nothing changes
+until `confirmToolAction(proposalId)` runs. Proposals are:
+
+* stored in the tenant's data, so they're invisible to other organizations;
+* confirmable only by the same user;
+* single-use and expiring after 15 minutes;
+* **re-authorized at confirmation**: if the role or module changed in between, the action fails and is recorded.
+
+Audit trail: `AI_ACTION_PROPOSED` → the service's own events → `AI_ACTION_EXECUTED` →
+`AI_ACTION_CONFIRMED` / `AI_ACTION_FAILED` / `AI_ACTION_CANCELLED`.
+
+### 11.5 Module graph
+
+Dependencies are declared data, and the resolver is generic. `registryProblems()` rejects unknown, self
+and circular dependencies, and runs on the real registry at import. Saved configurations are always
+dependency-complete (`saveModules` asserts it). `setModules(..., { strict: true })` rejects missing
+dependencies instead of adding them. Presets go through the same resolver. Planned modules never appear in
+presets, navigation, widgets, tools or imports. Remaining `isModuleEnabled(...)` calls in services are
+entitlement-driven *behavior* (skip customs, don't bill), not dependency special cases.
+
+### 11.6 Remaining limitations
+
+* No real identity provider yet. `setAuthenticator` is the seam, and the demo build defaults to the demo transport.
+* WhatsApp webhook signature verification (`X-Hub-Signature-256`) is still a TODO.
+* Proposal preview data can go stale before confirmation. The service re-validates on execution
+  (capacity, manifest state), but the preview isn't re-shown.
+* The browser demo still uses one synchronous tenant scope plus the session. It's per-tab, single-user
+  and holds demo data only.
+* Customer-assistant memory for the web chat lives in the React component (per tab). WhatsApp memory
+  lives in the tenant's conversation.

@@ -85,6 +85,7 @@ function defaultOrganization(T0: number): Organization {
     modules: resolveModules([...BUSINESS_TYPES.freight_forwarder.modules, "procurement", "assistant", "api"]),
     branding: { primaryColor: "#0a7f8b", logoText: "Shipping OS", tagline: "From checkout to your doorstep." },
     contact: { email: "hello@shippingos.example", phone: "(242) 555-0100", address: "10 Demo Harbour Road, Nassau" },
+    channels: { whatsappPhoneNumberId: "DEMO_PHONE_ID" },
     createdAt: new Date(T0 - 500 * DAY).toISOString(),
   };
 }
@@ -238,7 +239,7 @@ function build(): PlatformState {
     recv(20, mUni, { merchant: "Target", item: "School uniforms", w: 5.2, dims: [14, 12, 6] });
     at(3.5, () => svc.createTicket(who("cus_monique"), { customerId: "cus_monique", channel: "whatsapp", subject: "Customs needs an invoice", message: "Why is my baby monitor not moving?", packageId: mMonitor.id, priority: "high" }));
     chat("cus_monique", "whatsapp", 3.5, [["customer", "Why is my baby monitor not moving?", "find_package"], ["assistant", "It needs the store receipt before it can travel. I've asked our team to help.", "human"]]);
-    at(3.49, () => svc.markEscalated("cus_monique", "whatsapp", s.tickets.at(-1)!.id));
+    at(3.49, () => svc.markEscalated(who("cus_monique"), "cus_monique", "whatsapp", s.tickets.at(-1)!.id));
 
     /* Kendrick — Island Hardware Co. (business, ocean, home delivery) */
     const kPast = journey("cus_kendrick", 44, [{ merchant: "Uline", item: "Shipping boxes", w: 120, dims: [48, 40, 30], receipt: "email", service: "ocean" }], { until: "delivered", by: "K. Bain (store)", driver: "Rodney (Truck 1)" });
@@ -270,7 +271,7 @@ function build(): PlatformState {
     chat("cus_alicia", "web", 1.5, [["customer", "I was charged twice.", "billing"], ["assistant", "I can see two payment records. I'm going to send this to our support team so they can review it.", "billing"]]);
     at(1.49, () => {
       const t = svc.createTicket(svc.aiActor("cus_alicia"), { customerId: "cus_alicia", channel: "web", subject: "Customer says they were charged twice", message: "I was charged twice.", billId: billOf(aShip.id).id, priority: "high" });
-      svc.markEscalated("cus_alicia", "web", t.id);
+      svc.markEscalated(svc.aiActor("cus_alicia"), "cus_alicia", "web", t.id);
     });
 
     /* Dwayne — Grand Bahama: oversized TV + an unmatched label */

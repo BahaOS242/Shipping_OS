@@ -111,13 +111,24 @@ export function logConversation(customerId: ID, channel: Conversation["channel"]
   });
 }
 
-export function markEscalated(customerId: ID, channel: Conversation["channel"], ticketId: ID) {
+export function markEscalated(actor: Actor, customerId: ID, channel: Conversation["channel"], ticketId: ID) {
+  authorize(actor, null, actor.customerId === customerId || can(actor, "ticket.manage"), "Not allowed.");
   return mutate(() => {
     const c = getConversation(customerId, channel);
     if (c) {
       c.escalated = true;
       c.ticketId = ticketId;
     }
+  });
+}
+
+/** Assistant memory for a customer's conversation in the active organization. */
+export const getAgentContext = (customerId: ID, channel: Conversation["channel"]) => getConversation(customerId, channel)?.agentContext;
+
+export function saveAgentContext(customerId: ID, channel: Conversation["channel"], context: Record<string, unknown>) {
+  return mutate(() => {
+    const c = getConversation(customerId, channel);
+    if (c) c.agentContext = structuredClone(context);
   });
 }
 
