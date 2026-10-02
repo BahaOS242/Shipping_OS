@@ -33,7 +33,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [live]);
 
   let content: React.ReactNode;
-  if (under(pathname, ["/onboarding"]))
+  // Prospect demo: its own simulated workspace, isolated from the app's data and shells.
+  if (under(pathname, ["/demo"])) content = children;
+  else if (under(pathname, ["/onboarding"]))
     content = (
       <div className="min-h-dvh bg-[#f4f6f8]">
         <DemoBar />

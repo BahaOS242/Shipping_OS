@@ -90,7 +90,7 @@ export function CustomerShell({ children }: { children: React.ReactNode }) {
           {[
             { h: "Ship with us", l: [["How it works", "/how-it-works"], ["Your U.S. address", "/us-address-bahamas"], ["Shipping to The Bahamas", "/shipping-to-bahamas"], ["Put packages together", "/package-consolidation-bahamas"], ["Shipping calculator", "/shipping-calculator"]] },
             { h: "Services", l: [["Air freight", "/air-freight-bahamas"], ["Ocean freight", "/ocean-freight-bahamas"], ["Amazon to The Bahamas", "/amazon-bahamas"], ["Family Islands", "/shipping-to-family-islands"], ["Business logistics", "/business"]] },
-            { h: "Help & demo", l: [["Locations", "/locations"], ["Help", "/help"], ["Shipping OS Assistant", "/assistant"], ["WhatsApp demo", "/whatsapp-demo"], ["Staff operations (demo)", "/admin"]] },
+            { h: "Help & demo", l: [["Locations", "/locations"], ["Help", "/help"], ["Shipping OS Assistant", "/assistant"], ["WhatsApp demo", "/whatsapp-demo"], ["Staff operations (demo)", "/admin"], ["Shipping OS for logistics companies", "/demo"]] },
           ].map((c) => (
             <div key={c.h}>
               <h2 className="font-bold">{c.h}</h2>

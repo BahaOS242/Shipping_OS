@@ -18,13 +18,35 @@ npm install
 npm run dev              # http://localhost:3000
 npm run build && npm start
 npm run typecheck && npm run lint
-npm test                 # journey (30) + platform (32) + hardening (21) + concurrent isolation (9)
+npm test                 # journey (30) + platform (32) + hardening (21) + concurrent isolation (9) + demo (8)
+node tests/demo-ui.mjs   # interactive prospect demo through the browser (needs Playwright + running server)
 node tests/ui-journey.mjs   # same journey through the browser UI (needs Playwright + running server)
 ```
 
 Use the **“Viewing as”** switcher in the black DEMO MODE bar to pick an
 **organization**, then become one of its customers or staff roles. **Reset demo data**
 and **Set up a new organization** are in the same menu.
+
+## Interactive prospect demo — `/demo`
+
+A guided, clickable simulation for logistics companies: pick **Freight Forwarder, Mailboat Operator,
+Courier, Warehouse, Charter Operator or Full Logistics Company** and work through 6–7 steps of
+Shipping OS configured for that operation. You receive cargo, build and close a manifest, fill a sailing
+against capacity, dispatch drivers, capture proof of delivery, issue an invoice, and ask the
+(simulated) AI. The URL is shareable: `/demo?op=mailboat&step=4`.
+
+- **Scenario registry** (`src/demo/`): each business type is one config file (organization, user,
+  modules, steps, simulated data, AI moment, completion copy). Modules come from the real presets,
+  and the sidebar is derived from the real navigation, so each demo workspace is the actual product's
+  information architecture for that configuration. Adding a seventh type = one config file.
+- **Engine** (`src/demo/engine.ts`): a pure reducer for next/back/jump/restart and per-step screen
+  state. Back shows what you did; Restart clears it.
+- **Screens** (`src/components/demo/screens/`): 17 reusable screen kinds (dashboard, receive,
+  manifest, timeline, portal, AI, vessel, bookings, capacity, dispatch, driver, proof of delivery,
+  storage, grouping, departure board, connected workflow, billing). They're rendered from config, with no
+  business-type branches.
+- **Isolated**: demo data never touches the application store, services or AI layer (lint-enforced
+  and tested). The AI moment is clearly labelled as simulated, and drafts are shown for review, never applied.
 
 ## One platform, many logistics businesses
 

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tests/journey.ts && tsx tests/platform.ts && tsx tests/hardening.ts && tsx tests/concurrency.ts",
+    "test": "tsx tests/journey.ts && tsx tests/platform.ts && tsx tests/hardening.ts && tsx tests/concurrency.ts && tsx tests/demo.ts",
     "smoke": "tsx tests/smoke.ts",
     "lint": "eslint ."
   },

@@ -62,6 +62,15 @@
       transform: none;
     }
   }
+  @keyframes demo-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(255 199 44 / 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 7px rgb(255 199 44 / 0);
+    }
+  }
   @keyframes pop {
     from {
       opacity: 0;
