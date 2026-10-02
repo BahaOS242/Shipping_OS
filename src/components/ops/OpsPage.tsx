@@ -2,7 +2,7 @@
 export function OpsPage({ title, sub, actions, children, eyebrow }: { title: React.ReactNode; sub?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; eyebrow?: React.ReactNode }) {
   return (
     <div className="space-y-5">
-      <title>{`${typeof title === "string" ? title : "Operations"} · The Link Ops`}</title>
+      <title>{`${typeof title === "string" ? title : "Operations"} · Shipping OS Ops`}</title>
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           {eyebrow && <div className="mb-1 text-sm font-bold uppercase tracking-wider text-ink-mute">{eyebrow}</div>}

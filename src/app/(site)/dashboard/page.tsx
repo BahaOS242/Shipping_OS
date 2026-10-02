@@ -19,7 +19,7 @@ import * as svc from "@/services";
 import { useAction } from "@/components/ui/Toast";
 
 export default function DashboardPage() {
-  return <CustomerView title="My Link">{(me) => (me.type === "business" ? <BusinessDashboard me={me} /> : <PersonalDashboard me={me} />)}</CustomerView>;
+  return <CustomerView title="My Shipping">{(me) => (me.type === "business" ? <BusinessDashboard me={me} /> : <PersonalDashboard me={me} />)}</CustomerView>;
 }
 
 function PersonalDashboard({ me }: { me: Customer }) {
@@ -83,7 +83,7 @@ function PersonalDashboard({ me }: { me: Customer }) {
         {active.length ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{active.map((p) => <PackageCard key={p.id} pkg={p} />)}</div>
         ) : (
-          <EmptyState icon="📭" title="No packages on the move" action={<ButtonLink href="/profile">Get my U.S. address</ButtonLink>}>Shop at any U.S. store using your The Link address.</EmptyState>
+          <EmptyState icon="📭" title="No packages on the move" action={<ButtonLink href="/profile">Get my U.S. address</ButtonLink>}>Shop at any U.S. store using your Shipping OS address.</EmptyState>
         )}
       </section>
 

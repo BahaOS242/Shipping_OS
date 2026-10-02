@@ -6,8 +6,9 @@
  * Production: same event names on a real queue (e.g. Postgres outbox → workers).
  */
 import { nowIso } from "@/data/clock";
-import { db, nextSeq } from "@/data/store";
+import { db, nextSeq, tenantId } from "@/data/store";
 import type { Actor, AuditEvent, Refs } from "@/domain/types";
+import { PLATFORM_ORG } from "@/services/access";
 
 export const EVENT_TYPES = [
   "CUSTOMER_CREATED",
@@ -52,6 +53,26 @@ export const EVENT_TYPES = [
   "CUSTOMER_NOTIFIED",
   "PROCUREMENT_REQUESTED",
   "PROCUREMENT_UPDATED",
+  "ORGANIZATION_CREATED",
+  "ORGANIZATION_UPDATED",
+  "MODULES_UPDATED",
+  "USER_INVITED",
+  "DATA_IMPORTED",
+  "NETWORK_UPDATED",
+  "TRIP_SCHEDULED",
+  "TRIP_DEPARTED",
+  "TRIP_ARRIVED",
+  "BOOKING_REQUESTED",
+  "BOOKING_CONFIRMED",
+  "BOOKING_CHECKED_IN",
+  "BOOKING_CANCELLED",
+  "SHIPMENT_ASSIGNED_TO_TRIP",
+  "MANIFEST_CLOSED",
+  "AI_ACTION_PROPOSED",
+  "AI_ACTION_CONFIRMED",
+  "AI_ACTION_CANCELLED",
+  "AI_ACTION_FAILED",
+  "AI_ACTION_EXECUTED",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
@@ -73,10 +94,10 @@ export function onEvent(h: Handler) {
 
 /** Must be called inside a `mutate()` (services do this). */
 export function emit(type: EventType, input: EmitInput): AuditEvent {
-  const event: AuditEvent = { id: `EVT-${nextSeq("evt", 0)}`, type, at: nowIso(), ...input };
+  const event: AuditEvent = { id: `EVT-${nextSeq("evt", 0)}`, organizationId: tenantId(), type, at: nowIso(), ...input };
   db().events.push(event);
   for (const h of handlers) h(event);
   return event;
 }
 
-export const SYSTEM: Actor = { kind: "system", name: "The Link system", role: "admin" };
+export const SYSTEM: Actor = { kind: "system", name: "Shipping OS system", role: "admin", organizationId: PLATFORM_ORG };

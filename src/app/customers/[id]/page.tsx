@@ -104,7 +104,7 @@ export default function Customer360({ params }: { params: Promise<{ id: string }
       )}
       <Modal open={msg} onClose={() => setMsg(false)} title={`Message ${c.firstName} on WhatsApp (simulated)`}>
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); if (run(() => svc.staffMessage(actor, c.id, text), "Sent — it appears in their WhatsApp thread.")) { setText(""); setMsg(false); } }}>
-          <Textarea rows={4} required value={text} onChange={(e) => setText(e.target.value)} placeholder={`Hi ${c.firstName}, this is ${actor.name.split(" ")[0]} from The Link…`} aria-label="Message" />
+          <Textarea rows={4} required value={text} onChange={(e) => setText(e.target.value)} placeholder={`Hi ${c.firstName}, this is ${actor.name.split(" ")[0]} from Shipping OS…`} aria-label="Message" />
           <Btn type="submit" tone="sea">Send</Btn>
         </form>
       </Modal>

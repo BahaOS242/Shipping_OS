@@ -1,5 +1,5 @@
 /**
- * Billing rules — pure functions. Bills are what The Link charges;
+ * Billing rules — pure functions. Bills are what Shipping OS charges;
  * payments are simulated (DEMO PAYMENT). Reconciliation compares them.
  */
 import type { Bill, BillLine, LandedCost, Payment } from "./types";

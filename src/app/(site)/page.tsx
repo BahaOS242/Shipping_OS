@@ -31,7 +31,7 @@ export default function HomePage() {
           <ActionCard href="/packages" icon="📦" title="I bought something" quote="Show me where my package is." cta="See My Packages" accent="sea" />
           <ActionCard href="/ship" icon="🚚" title="I want to ship something" quote="I need to send something to The Bahamas." cta="Start Shipping" accent="sun" />
           <ActionCard href="/shipping-calculator" icon="💰" title="I want to know the cost" quote="Tell me how much it will cost." cta="Calculate Cost" accent="ink" />
-          <ActionCard href="/help" icon="💬" title="I need help" quote="I'm not sure what to do." cta="Ask The Link" accent="coral" />
+          <ActionCard href="/help" icon="💬" title="I need help" quote="I'm not sure what to do." cta="Ask Shipping OS" accent="coral" />
         </div>
       </section>
 
@@ -55,9 +55,9 @@ export default function HomePage() {
         <Card className="flex flex-col p-6 sm:p-8">
           <span aria-hidden className="text-4xl">💬</span>
           <h2 className="mt-3 text-2xl font-extrabold">Confused? Just ask.</h2>
-          <p className="mt-1 text-lg text-ink-soft">Ask Link Assistant or message us on WhatsApp. A real person is always one tap away.</p>
+          <p className="mt-1 text-lg text-ink-soft">Ask Shipping OS Assistant or message us on WhatsApp. A real person is always one tap away.</p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 md:mt-auto md:pt-6">
-            <ButtonLink href="/assistant" icon="🤖">Ask The Link</ButtonLink>
+            <ButtonLink href="/assistant" icon="🤖">Ask Shipping OS</ButtonLink>
             <ButtonLink href="/whatsapp-demo" variant="whatsapp" icon="💬">WhatsApp</ButtonLink>
           </div>
         </Card>
@@ -66,7 +66,7 @@ export default function HomePage() {
           <p className="mt-3 text-sm font-bold uppercase tracking-wider text-sun-300">Are you a business?</p>
           <h2 className="mt-1 text-2xl font-extrabold">Your logistics team, without hiring one.</h2>
           <p className="mt-1 text-lg text-white/75">Supplier shipments, inventory, commercial freight — even buying it for you.</p>
-          <span className="mt-6 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 px-5 text-lg font-bold ring-1 ring-white/20 group-hover:bg-white/15 md:mt-auto">The Link for Business →</span>
+          <span className="mt-6 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white/10 px-5 text-lg font-bold ring-1 ring-white/20 group-hover:bg-white/15 md:mt-auto">Shipping OS for Business →</span>
         </Link>
       </section>
     </div>

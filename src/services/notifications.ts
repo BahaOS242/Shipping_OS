@@ -32,7 +32,7 @@ export const CUSTOMER_RULES: Partial<Record<string, Rule>> = {
   CLAIM_CREATED: { icon: "🛟", title: "Claim received", channels: ["in_app", "email"], href: (e) => `/claims?open=${e.refs.claimId}` },
   CLAIM_UPDATED: { icon: "🛟", title: "Claim update", channels: ["in_app", "email"], href: (e) => `/claims?open=${e.refs.claimId}` },
   SUPPORT_TICKET_CREATED: { icon: "🎧", title: "Help request opened", channels: ["in_app"], href: () => "/support" },
-  STAFF_MESSAGE: { icon: "💬", title: "Message from The Link", channels: ["in_app"], href: () => "/support" },
+  STAFF_MESSAGE: { icon: "💬", title: "Message from Shipping OS", channels: ["in_app"], href: () => "/support" },
   CUSTOMER_NOTIFIED: { icon: "⏰", title: "Your package is waiting", channels: ["in_app", "whatsapp", "email"], href: pkgOrShipment },
   STORAGE_FEE_APPLIED: { icon: "⏰", title: "Storage fee added", channels: ["in_app", "email"], href: () => "/payments" },
   PROCUREMENT_UPDATED: { icon: "🛒", title: "Buy-for-me update", channels: ["in_app", "email"], href: () => "/dashboard" },
@@ -58,6 +58,7 @@ onEvent((e) => {
   if (cRule && e.refs.customerId && e.customerSummary) {
     const n: Notification = {
       id: `NTF-${nextSeq("ntf", 0)}`,
+      organizationId: s.organizationId,
       audience: "customer",
       customerId: e.refs.customerId,
       icon: cRule.icon,
@@ -75,7 +76,7 @@ onEvent((e) => {
       // Simulated WhatsApp template message in the customer's thread.
       let conv = s.conversations.find((c) => c.customerId === e.refs.customerId && c.channel === "whatsapp");
       if (!conv) {
-        conv = { id: `CONV-${nextSeq("conv", 0)}`, customerId: e.refs.customerId, channel: "whatsapp", messages: [], intents: [], escalated: false, updatedAt: e.at };
+        conv = { id: `CONV-${nextSeq("conv", 0)}`, organizationId: s.organizationId, customerId: e.refs.customerId, channel: "whatsapp", messages: [], intents: [], escalated: false, updatedAt: e.at };
         s.conversations.push(conv);
       }
       conv.messages.push({ id: `M${nextSeq("msg", 0)}`, author: "assistant", text: `${cRule.icon} ${e.customerSummary}`, at: e.at });
@@ -84,7 +85,7 @@ onEvent((e) => {
   }
   const sRule = STAFF_RULES[e.type]?.(e);
   if (sRule) {
-    s.notifications.push({ id: `NTF-${nextSeq("ntf", 0)}`, audience: "staff", team: sRule.team, icon: sRule.icon, title: sRule.title, body: e.summary, href: sRule.href, at: e.at, read: false, channels: ["in_app"], eventId: e.id, refs: e.refs });
+    s.notifications.push({ id: `NTF-${nextSeq("ntf", 0)}`, organizationId: s.organizationId, audience: "staff", team: sRule.team, icon: sRule.icon, title: sRule.title, body: e.summary, href: sRule.href, at: e.at, read: false, channels: ["in_app"], eventId: e.id, refs: e.refs });
   }
 });
 

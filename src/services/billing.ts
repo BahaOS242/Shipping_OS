@@ -1,15 +1,16 @@
 /**
- * BILLING & PAYMENTS — what The Link charges, what customers paid (DEMO PAYMENT),
+ * BILLING & PAYMENTS — what Shipping OS charges, what customers paid (DEMO PAYMENT),
  * and reconciliation between the two. No real money moves anywhere.
  */
 import { DAY, now, nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
 import { BILLING_RULES, balanceOf, billStatus, paidOn, reconcile, suggestBillForPayment, withTotals, type BillStatus } from "@/domain/billing";
 import { calculateShippingCost } from "@/domain/rates";
-import { assert, can, canActOn } from "@/domain/roles";
+import { can, canActOn } from "@/domain/roles";
 import type { Actor, Bill, BillLine, ChargeKind, ID, Payment, PaymentMethod } from "@/domain/types";
 import { emit } from "@/events/bus";
 import { BusinessError, byId, round2 } from "./_shared";
+import { authorize } from "./access";
 import { getCustomer } from "./customers";
 import { autoResolve, ensureException } from "./exceptions";
 import { getDestination } from "./locations";
@@ -47,6 +48,7 @@ function newBill(customerId: ID, lines: BillLine[], extra: Partial<Bill> = {}): 
   const issuedAt = nowIso();
   return withTotals({
     id: `INV-${new Date(now()).getFullYear()}-${String(nextSeq("bill", 100)).padStart(5, "0")}`,
+    organizationId: c.organizationId,
     customerId,
     lifecycle: "issued",
     lines,
@@ -63,6 +65,7 @@ function newBill(customerId: ID, lines: BillLine[], extra: Partial<Bill> = {}): 
 
 /** Bill a shipment: shipping by combined billable weight + duty estimate on declared value. */
 export function billShipment(actor: Actor, shipmentId: ID) {
+  authorize(actor, "billing", actor.kind === "system" || can(actor, "billing.record_payment"));
   return mutate((s) => {
     const sh = byId(s.shipments, shipmentId, "Shipment");
     if (s.bills.some((b) => b.shipmentId === sh.id && b.lifecycle !== "void")) return s.bills.find((b) => b.shipmentId === sh.id)!;
@@ -82,7 +85,7 @@ export function billShipment(actor: Actor, shipmentId: ID) {
 
 /** Add a charge: onto the shipment's open bill if nothing is paid yet, else a new bill. */
 export function addCharge(actor: Actor, input: { customerId: ID; kind: ChargeKind; description: string; amount: number; shipmentId?: ID; packageId?: ID; procurementId?: ID }) {
-  assert(can(actor, "billing.record_payment") || can(actor, "delivery.manage") || can(actor, "package.edit") || can(actor, "procurement.manage") || actor.kind === "system");
+  authorize(actor, "billing", can(actor, "billing.record_payment") || can(actor, "delivery.manage") || can(actor, "package.edit") || can(actor, "procurement.manage") || actor.kind === "system");
   if (!(input.amount > 0)) throw new BusinessError("Charge must be above $0.");
   return mutate((s) => {
     const l = line(input.kind, input.description, input.amount, input.packageId);
@@ -114,7 +117,7 @@ function checkMismatch(bill: Bill) {
 
 /** Staff records money received. `settles` = payer said this pays the bill in full. */
 export function recordPayment(actor: Actor, input: { customerId: ID; billId?: ID; amount: number; method: PaymentMethod; reference?: string; settles?: boolean }) {
-  assert(can(actor, "billing.record_payment") || can(actor, "delivery.manage"), "Only accounting can record payments.");
+  authorize(actor, "billing", can(actor, "billing.record_payment") || can(actor, "delivery.manage"), "Only accounting can record payments.");
   const amount = round2(Number(input.amount));
   if (!(amount > 0)) throw new BusinessError("Enter an amount above $0.");
   return mutate((s) => {
@@ -125,6 +128,7 @@ export function recordPayment(actor: Actor, input: { customerId: ID; billId?: ID
     }
     const p: Payment = {
       id: `PAY-${nextSeq("pay", 5000)}`,
+      organizationId: s.organizationId,
       customerId: input.customerId,
       billId: input.billId,
       amount,
@@ -144,11 +148,11 @@ export function recordPayment(actor: Actor, input: { customerId: ID; billId?: ID
 /** Customer pays their balance on a bill (simulated — DEMO PAYMENT). */
 export function demoPay(actor: Actor, billId: ID) {
   const b = getBill(billId);
-  assert(canActOn(actor, "billing.record_payment", b), "You can only pay your own bills.");
+  authorize(actor, "billing", canActOn(actor, "billing.record_payment", b), "You can only pay your own bills.");
   const balance = balanceOf(b, db().payments);
   if (balance <= 0) throw new BusinessError("Nothing to pay on this bill.");
   return mutate((s) => {
-    const p: Payment = { id: `PAY-${nextSeq("pay", 5000)}`, customerId: b.customerId, billId: b.id, amount: balance, method: "online", reference: "DEMO PAYMENT", receivedAt: nowIso(), recordedBy: actor.name, demo: true };
+    const p: Payment = { id: `PAY-${nextSeq("pay", 5000)}`, organizationId: s.organizationId, customerId: b.customerId, billId: b.id, amount: balance, method: "online", reference: "DEMO PAYMENT", receivedAt: nowIso(), recordedBy: actor.name, demo: true };
     s.payments.push(p);
     emit("PAYMENT_RECEIVED", { actor, refs: { customerId: b.customerId, billId: b.id, paymentId: p.id, shipmentId: b.shipmentId }, summary: `DEMO PAYMENT $${balance.toFixed(2)} online on ${b.id}`, customerSummary: `You paid $${balance.toFixed(2)} (demo payment). Thank you!` });
     checkMismatch(b);
@@ -158,7 +162,7 @@ export function demoPay(actor: Actor, billId: ID) {
 
 /** Accounting links a stray payment to a bill. */
 export function applyPayment(actor: Actor, paymentId: ID, billId: ID) {
-  assert(can(actor, "billing.reconcile"), "Only accounting can reconcile payments.");
+  authorize(actor, "billing", can(actor, "billing.reconcile"), "Only accounting can reconcile payments.");
   return mutate((s) => {
     const p = byId(s.payments, paymentId, "Payment");
     const b = getBill(billId);
@@ -172,7 +176,7 @@ export function applyPayment(actor: Actor, paymentId: ID, billId: ID) {
 
 /** Accounting accepts a difference (e.g. short $42 written off) — requires a note. */
 export function acceptDifference(actor: Actor, billId: ID, note: string) {
-  assert(can(actor, "billing.reconcile"), "Only accounting can approve reconciliation.");
+  authorize(actor, "billing", can(actor, "billing.reconcile"), "Only accounting can approve reconciliation.");
   if (!note.trim()) throw new BusinessError("Add a note explaining the difference.");
   return mutate(() => {
     const b = getBill(billId);
@@ -186,7 +190,7 @@ export function acceptDifference(actor: Actor, billId: ID, note: string) {
 }
 
 export function voidBill(actor: Actor, billId: ID, reason: string) {
-  assert(can(actor, "billing.void"));
+  authorize(actor, "billing", can(actor, "billing.void"));
   return mutate((s) => {
     const b = getBill(billId);
     if (s.payments.some((p) => p.billId === b.id)) throw new BusinessError("This bill has payments. Refunds must be handled first.");

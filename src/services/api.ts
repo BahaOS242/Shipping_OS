@@ -1,5 +1,13 @@
 /** All services (no side-effect imports). The seed imports this to avoid a cycle. */
 export * from "./_shared";
+export * from "./access";
+export * from "./aiActions";
+export * from "./requestContext";
+export * from "./bookings";
+export * from "./capacity";
+export * from "./manifests";
+export * from "./network";
+export * from "./organizations";
 export * from "./analytics";
 export * from "./billing";
 export * from "./claims";

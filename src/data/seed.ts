@@ -6,19 +6,24 @@
  * real services with a backdated clock, so invoices, shipments, bills,
  * payments, exceptions, notifications and timelines are always consistent.
  */
-import type { Customer, Package, Voyage } from "@/domain/types";
-import { destinations, locations, staff } from "./reference";
+import type { Customer, Organization, Package, Voyage } from "@/domain/types";
+import { BUSINESS_TYPES } from "@/platform/businessTypes";
+import { resolveModules } from "@/platform/modules";
+import { destinations, forOrg, locations, staff } from "./reference";
 import * as svc from "@/services/api";
 import { DAY, HOUR, atTime } from "./clock";
-import { SCHEMA_VERSION, registerSeeder, withState, type DbState } from "./store";
+import { seedOtherOrganizations } from "./seedOrgs";
+import { SCHEMA_VERSION, emptyTenant, registerSeeder, withState, withTenant, type PlatformState } from "./store";
+
+type Row<T> = Omit<T, "organizationId">;
 
 /* ------------------------------------------------------------------ */
 /* Reference data                                                      */
 /* ------------------------------------------------------------------ */
 
-function customers(T0: number): Customer[] {
+function customers(T0: number): Row<Customer>[] {
   const since = (days: number) => new Date(T0 - days * DAY).toISOString();
-  const c = (id: string, acct: string, first: string, last: string, phone: string, home: Customer["homeDestination"], pref: Customer["deliveryPreference"], svcPref: Customer["preferredService"], address: string, days: number, extra: Partial<Customer> = {}): Customer => ({
+  const c = (id: string, acct: string, first: string, last: string, phone: string, home: Customer["homeDestination"], pref: Customer["deliveryPreference"], svcPref: Customer["preferredService"], address: string, days: number, extra: Partial<Row<Customer>> = {}): Row<Customer> => ({
     id, accountNumber: acct, firstName: first, lastName: last, email: `${first.toLowerCase()}.${last.toLowerCase()}@example.com`, phone, type: "personal",
     homeDestination: home, deliveryAddress: address, preferredPickupLocationId: destinations.find((x) => x.id === home)!.pickupLocationIds[0],
     deliveryPreference: pref, preferredService: svcPref, createdAt: since(days), ...extra,
@@ -39,8 +44,8 @@ function customers(T0: number): Customer[] {
   ];
 }
 
-function voyages(T0: number): Voyage[] {
-  const out: Voyage[] = [];
+function voyages(T0: number): Row<Voyage>[] {
+  const out: Row<Voyage>[] = [];
   let n = 180;
   for (const dest of destinations) {
     for (const mode of ["air", "ocean"] as const) {
@@ -69,35 +74,43 @@ function voyages(T0: number): Voyage[] {
 /* History replay                                                      */
 /* ------------------------------------------------------------------ */
 
-function build(): DbState {
+/** The original Shipping OS business: a Bahamas freight forwarder with buy-for-me, AI and API. */
+function defaultOrganization(T0: number): Organization {
+  return {
+    id: svc.DEFAULT_ORG_ID,
+    slug: "shipping-os",
+    name: "Shipping OS Bahamas",
+    businessType: "freight_forwarder",
+    status: "active",
+    modules: resolveModules([...BUSINESS_TYPES.freight_forwarder.modules, "procurement", "assistant", "api"]),
+    branding: { primaryColor: "#0a7f8b", logoText: "Shipping OS", tagline: "From checkout to your doorstep." },
+    contact: { email: "hello@shippingos.example", phone: "(242) 555-0100", address: "10 Demo Harbour Road, Nassau" },
+    channels: { whatsappPhoneNumberId: "DEMO_PHONE_ID" },
+    createdAt: new Date(T0 - 500 * DAY).toISOString(),
+  };
+}
+
+function build(): PlatformState {
   const T0 = Date.now();
-  const s: DbState = {
+  const org = defaultOrganization(T0);
+  const s = {
+    ...emptyTenant(org.id),
+    customers: forOrg(org.id, customers(T0)),
+    staff: forOrg(org.id, staff),
+    destinations: forOrg(org.id, destinations),
+    locations: forOrg(org.id, locations),
+    voyages: forOrg(org.id, voyages(T0)),
+  };
+  const p: PlatformState = {
     schema: SCHEMA_VERSION,
     seededAt: new Date(T0).toISOString(),
-    customers: customers(T0),
-    staff,
-    destinations,
-    locations,
-    voyages: voyages(T0),
-    packages: [],
-    shipments: [],
-    purchaseInvoices: [],
-    bills: [],
-    payments: [],
-    exceptions: [],
-    deliveries: [],
-    claims: [],
-    tickets: [],
-    conversations: [],
-    notifications: [],
-    events: [],
-    procurements: [],
-    quotes: [],
-    session: { role: "customer", customerId: "cus_trevor", staffId: "stf_renee" },
+    organizations: [org],
+    tenants: { [org.id]: s },
+    session: { organizationId: org.id, role: "customer", customerId: "cus_trevor", staffId: "stf_renee" },
     seq: {},
   };
 
-  withState(s, () => {
+  withState(p, () => withTenant(org.id, () => {
     const at = <T,>(daysAgo: number, fn: () => T) => atTime(T0 - daysAgo * DAY, fn);
     const cust = (id: string) => s.customers.find((c) => c.id === id)!;
     const who = (id: string) => svc.customerActor(cust(id));
@@ -226,7 +239,7 @@ function build(): DbState {
     recv(20, mUni, { merchant: "Target", item: "School uniforms", w: 5.2, dims: [14, 12, 6] });
     at(3.5, () => svc.createTicket(who("cus_monique"), { customerId: "cus_monique", channel: "whatsapp", subject: "Customs needs an invoice", message: "Why is my baby monitor not moving?", packageId: mMonitor.id, priority: "high" }));
     chat("cus_monique", "whatsapp", 3.5, [["customer", "Why is my baby monitor not moving?", "find_package"], ["assistant", "It needs the store receipt before it can travel. I've asked our team to help.", "human"]]);
-    at(3.49, () => svc.markEscalated("cus_monique", "whatsapp", s.tickets.at(-1)!.id));
+    at(3.49, () => svc.markEscalated(who("cus_monique"), "cus_monique", "whatsapp", s.tickets.at(-1)!.id));
 
     /* Kendrick — Island Hardware Co. (business, ocean, home delivery) */
     const kPast = journey("cus_kendrick", 44, [{ merchant: "Uline", item: "Shipping boxes", w: 120, dims: [48, 40, 30], receipt: "email", service: "ocean" }], { until: "delivered", by: "K. Bain (store)", driver: "Rodney (Truck 1)" });
@@ -258,7 +271,7 @@ function build(): DbState {
     chat("cus_alicia", "web", 1.5, [["customer", "I was charged twice.", "billing"], ["assistant", "I can see two payment records. I'm going to send this to our support team so they can review it.", "billing"]]);
     at(1.49, () => {
       const t = svc.createTicket(svc.aiActor("cus_alicia"), { customerId: "cus_alicia", channel: "web", subject: "Customer says they were charged twice", message: "I was charged twice.", billId: billOf(aShip.id).id, priority: "high" });
-      svc.markEscalated("cus_alicia", "web", t.id);
+      svc.markEscalated(svc.aiActor("cus_alicia"), "cus_alicia", "web", t.id);
     });
 
     /* Dwayne — Grand Bahama: oversized TV + an unmatched label */
@@ -274,7 +287,7 @@ function build(): DbState {
     at(13, () => svc.demoPay(who("cus_keisha"), billOf(kSh.id).id));
     const kPb = pre("cus_keisha", 3, { merchant: "Amazon", item: "Power bank", w: 1.1, carrierWeight: 1.1 });
     recv(1, kPb, { merchant: "Amazon", item: "", w: 6.4, dims: [10, 8, 6] });
-    chat("cus_keisha", "whatsapp", 9, [["customer", "What's my US address again?", "address"], ["assistant", "Keisha Cartwright, The Link #TL10415, 123 Demo Warehouse Way, Hollywood, FL 33020", "address"]]);
+    chat("cus_keisha", "whatsapp", 9, [["customer", "What's my US address again?", "address"], ["assistant", "Keisha Cartwright, Shipping OS #TL10415, 123 Demo Warehouse Way, Hollywood, FL 33020", "address"]]);
 
     /* Marcus — new customer; duplicate scan */
     const mcCable = pre("cus_marcus", 5, { merchant: "Amazon", item: "USB-C charging cable", w: 0.6 });
@@ -325,9 +338,10 @@ function build(): DbState {
     at(0, () => svc.runSystemChecks());
     // History older than two days has already been seen.
     for (const n of s.notifications) if (T0 - new Date(n.at).getTime() > 2 * DAY) n.read = true;
-  });
+  }));
 
-  return s;
+  withState(p, () => seedOtherOrganizations(T0));
+  return p;
 }
 
 registerSeeder(build);

@@ -4,10 +4,11 @@
  */
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
-import { assert, can, canActOn } from "@/domain/roles";
+import { can, canActOn } from "@/domain/roles";
 import type { Actor, Channel, ChatMessage, Conversation, ID, SupportTicket } from "@/domain/types";
 import { emit } from "@/events/bus";
 import { BusinessError, byId } from "./_shared";
+import { authorize } from "./access";
 
 export const getTicket = (id: ID) => byId(db().tickets, id, "Ticket");
 
@@ -20,10 +21,11 @@ export function listTickets(f: { customerId?: ID; status?: SupportTicket["status
 const msg = (author: ChatMessage["author"], text: string, staffName?: string): ChatMessage => ({ id: `M${nextSeq("msg", 0)}`, author, text, at: nowIso(), staffName });
 
 export function createTicket(actor: Actor, input: { customerId: ID; subject: string; message: string; channel: Channel; packageId?: ID; shipmentId?: ID; billId?: ID; priority?: SupportTicket["priority"] }) {
-  assert(canActOn(actor, "ticket.manage", { customerId: input.customerId }) || (actor.kind === "ai" && actor.customerId === input.customerId), "Not allowed.");
+  authorize(actor, "support", canActOn(actor, "ticket.manage", { customerId: input.customerId }) || (actor.kind === "ai" && actor.customerId === input.customerId), "Not allowed.");
   return mutate((s) => {
     const t: SupportTicket = {
       id: `SUP-${nextSeq("sup", 400)}`,
+      organizationId: s.organizationId,
       customerId: input.customerId,
       channel: input.channel,
       subject: input.subject,
@@ -40,7 +42,7 @@ export function createTicket(actor: Actor, input: { customerId: ID; subject: str
     emit("SUPPORT_TICKET_CREATED", {
       actor,
       refs: { customerId: t.customerId, ticketId: t.id, packageId: t.packageId, shipmentId: t.shipmentId, billId: t.billId },
-      summary: `Ticket ${t.id} opened${t.createdBy === "ai" ? " by Link Assistant" : ""}: ${t.subject}`,
+      summary: `Ticket ${t.id} opened${t.createdBy === "ai" ? " by Shipping OS Assistant" : ""}: ${t.subject}`,
       customerSummary: `We opened request ${t.id} so a person can help: ${t.subject}.`,
     });
     return t;
@@ -50,7 +52,7 @@ export function createTicket(actor: Actor, input: { customerId: ID; subject: str
 export function replyTicket(actor: Actor, id: ID, text: string) {
   const t = getTicket(id);
   const staff = can(actor, "ticket.manage");
-  assert(staff || canActOn(actor, "ticket.manage", t));
+  authorize(actor, "support", staff || canActOn(actor, "ticket.manage", t));
   if (!text.trim()) throw new BusinessError("Write a message.");
   return mutate(() => {
     t.messages.push(msg(staff ? "staff" : "customer", text.trim(), staff ? actor.name : undefined));
@@ -58,7 +60,7 @@ export function replyTicket(actor: Actor, id: ID, text: string) {
     if (staff) {
       t.assignee ??= actor.name;
       logConversation(t.customerId, t.channel === "whatsapp" ? "whatsapp" : "web", "staff", text.trim(), actor.name);
-      emit("STAFF_MESSAGE", { actor, refs: { customerId: t.customerId, ticketId: t.id }, summary: `${actor.name} replied on ${t.id}`, customerSummary: `${actor.name.split(" ")[0]} from The Link replied: “${text.trim()}”` });
+      emit("STAFF_MESSAGE", { actor, refs: { customerId: t.customerId, ticketId: t.id }, summary: `${actor.name} replied on ${t.id}`, customerSummary: `${actor.name.split(" ")[0]} from Shipping OS replied: “${text.trim()}”` });
     } else {
       emit("TICKET_UPDATED", { actor, refs: { customerId: t.customerId, ticketId: t.id }, summary: `Customer replied on ${t.id}` });
     }
@@ -67,7 +69,7 @@ export function replyTicket(actor: Actor, id: ID, text: string) {
 }
 
 function ticketAction(actor: Actor, id: ID, fn: (t: SupportTicket) => void, summary: string) {
-  assert(can(actor, "ticket.manage"), "Only support can do that.");
+  authorize(actor, "support", can(actor, "ticket.manage"), "Only support can do that.");
   return mutate(() => {
     const t = getTicket(id);
     fn(t);
@@ -95,7 +97,7 @@ export function logConversation(customerId: ID, channel: Conversation["channel"]
   return mutate((s) => {
     let c = getConversation(customerId, channel);
     if (!c) {
-      c = { id: `CONV-${nextSeq("conv", 0)}`, customerId, channel, messages: [], intents: [], escalated: false, updatedAt: nowIso() };
+      c = { id: `CONV-${nextSeq("conv", 0)}`, organizationId: s.organizationId, customerId, channel, messages: [], intents: [], escalated: false, updatedAt: nowIso() };
       s.conversations.push(c);
     }
     const m = msg(author, text, staffName);
@@ -103,13 +105,14 @@ export function logConversation(customerId: ID, channel: Conversation["channel"]
     c.updatedAt = m.at;
     if (intent) c.intents.push(intent);
     const where = channel === "whatsapp" ? "WhatsApp" : "web chat";
-    if (author === "customer") emit("CUSTOMER_MESSAGE", { actor: { kind: "customer", name: "Customer", role: "customer", customerId }, refs: { customerId }, summary: `Customer asked on ${where}: “${text.slice(0, 120)}”` });
-    if (author === "assistant" && intent) emit("AI_RESPONDED", { actor: { kind: "ai", name: "Link Assistant", role: "customer", customerId }, refs: { customerId }, summary: `Link Assistant answered on ${where} (${intent})` });
+    if (author === "customer") emit("CUSTOMER_MESSAGE", { actor: { kind: "customer", name: "Customer", role: "customer", customerId, organizationId: s.organizationId }, refs: { customerId }, summary: `Customer asked on ${where}: “${text.slice(0, 120)}”` });
+    if (author === "assistant" && intent) emit("AI_RESPONDED", { actor: { kind: "ai", name: "Shipping OS Assistant", role: "customer", customerId, organizationId: s.organizationId }, refs: { customerId }, summary: `Shipping OS Assistant answered on ${where} (${intent})` });
     return c;
   });
 }
 
-export function markEscalated(customerId: ID, channel: Conversation["channel"], ticketId: ID) {
+export function markEscalated(actor: Actor, customerId: ID, channel: Conversation["channel"], ticketId: ID) {
+  authorize(actor, null, actor.customerId === customerId || can(actor, "ticket.manage"), "Not allowed.");
   return mutate(() => {
     const c = getConversation(customerId, channel);
     if (c) {
@@ -119,9 +122,19 @@ export function markEscalated(customerId: ID, channel: Conversation["channel"], 
   });
 }
 
+/** Assistant memory for a customer's conversation in the active organization. */
+export const getAgentContext = (customerId: ID, channel: Conversation["channel"]) => getConversation(customerId, channel)?.agentContext;
+
+export function saveAgentContext(customerId: ID, channel: Conversation["channel"], context: Record<string, unknown>) {
+  return mutate(() => {
+    const c = getConversation(customerId, channel);
+    if (c) c.agentContext = structuredClone(context);
+  });
+}
+
 /** Staff message straight to a customer's WhatsApp (simulated — nothing is sent). */
 export function staffMessage(actor: Actor, customerId: ID, text: string) {
-  assert(can(actor, "customer.read_any"), "Only staff can message customers.");
+  authorize(actor, "customers", can(actor, "customer.read_any"), "Only staff can message customers.");
   if (!text.trim()) throw new BusinessError("Write a message.");
   return mutate(() => {
     logConversation(customerId, "whatsapp", "staff", text.trim(), actor.name);

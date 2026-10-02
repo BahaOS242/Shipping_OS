@@ -4,7 +4,7 @@ import { BusinessCard } from "@/components/business/BusinessCard";
 import { BusinessContact, OpenBusinessDemo } from "@/components/marketing/BusinessActions";
 import { ButtonLink } from "@/components/ui/Button";
 
-export const metadata: Metadata = { title: "The Link for Business", description: "Supplier shipments, inventory, commercial freight, procurement, recurring shipments, delivery and reporting for Bahamian businesses." };
+export const metadata: Metadata = { title: "Shipping OS for Business", description: "Supplier shipments, inventory, commercial freight, procurement, recurring shipments, delivery and reporting for Bahamian businesses." };
 
 const SERVICES = [
   { icon: "🏭", title: "Supplier shipments", text: "Your suppliers ship to our Florida warehouse. Every box checked in and matched to its invoice." },
@@ -20,7 +20,7 @@ export default function BusinessPage() {
   return (
     <div className="space-y-12">
       <section className="-mx-4 bg-ink px-4 py-12 text-white sm:mx-0 sm:rounded-[2rem] sm:px-10 sm:py-16">
-        <p className="text-sm font-bold uppercase tracking-wider text-sun-300">The Link for Business</p>
+        <p className="text-sm font-bold uppercase tracking-wider text-sun-300">Shipping OS for Business</p>
         <h1 className="mt-3 max-w-3xl text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">Your logistics team, <span className="text-sun-300">without hiring one.</span></h1>
         <p className="mt-4 max-w-2xl text-xl text-white/80">We can receive, consolidate and move the things your business needs — and buy them for you.</p>
         <div className="mt-8 flex flex-wrap gap-3">
@@ -34,7 +34,7 @@ export default function BusinessPage() {
       </section>
       <section className="grid gap-5 md:grid-cols-3">
         {[
-          ["1", "Connect suppliers", "Give suppliers your business The Link address. Invoices are read and matched automatically."],
+          ["1", "Connect suppliers", "Give suppliers your business Shipping OS address. Invoices are read and matched automatically."],
           ["2", "We run the chain", "Receiving, consolidation, customs packets, freight and delivery — with exceptions handled by people."],
           ["3", "You see everything", "Open shipments, cargo in transit, balance and statements in one place."],
         ].map(([n, t, d]) => (

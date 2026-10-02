@@ -6,11 +6,12 @@
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
 import { calculateBillableWeight, isOversized } from "@/domain/rates";
-import { assert, can, canActOn } from "@/domain/roles";
+import { can, canActOn } from "@/domain/roles";
 import { freeStorageUntil } from "@/domain/storage";
 import type { Actor, DestinationId, ID, OpsException, Package, PackageStatus, ServiceLevel } from "@/domain/types";
 import { SYSTEM, emit } from "@/events/bus";
 import { BusinessError, byId, customerName } from "./_shared";
+import { authorize } from "./access";
 import { findCustomer, getCustomer, matchCustomerFromLabel } from "./customers";
 import { autoResolve, ensureException, raiseException } from "./exceptions";
 import { autoMatchInvoiceForPackage, getPurchaseInvoice } from "./invoiceEngine";
@@ -32,10 +33,11 @@ export const billableFor = (p: Package, service: ServiceLevel = p.service) => ca
 export const consolidationCandidates = (customerId: ID) =>
   listPackages({ customerId, status: "received" }).filter((p) => !p.shipmentId && p.storage.holdStatus === "none");
 
-function newPackage(input: Omit<Package, "id" | "photos" | "condition" | "storage" | "createdAt" | "status"> & { status?: PackageStatus }): Package {
+function newPackage(input: Omit<Package, "id" | "organizationId" | "photos" | "condition" | "storage" | "createdAt" | "status"> & { status?: PackageStatus }): Package {
   return {
     ...input,
     id: `TL-PKG-${nextSeq("pkg", 10470)}`,
+    organizationId: db().organizationId,
     status: input.status ?? "incoming",
     photos: [],
     condition: "good",
@@ -49,7 +51,7 @@ export function preAlert(
   actor: Actor,
   input: { customerId: ID; merchant: string; itemName: string; carrier: Package["carrier"]; inboundTracking: string; orderNumber?: string; expectedAt?: string; destinationId?: DestinationId; service?: ServiceLevel; carrierWeight?: number },
 ) {
-  assert(canActOn(actor, "package.receive", { customerId: input.customerId }), "You can only add packages to your own account.");
+  authorize(actor, "shipments", canActOn(actor, "package.receive", { customerId: input.customerId }), "You can only add packages to your own account.");
   const c = getCustomer(input.customerId);
   return mutate((s) => {
     const pkg = newPackage({
@@ -85,7 +87,7 @@ export function dockScan(
   actor: Actor,
   input: { inboundTracking: string; carrier: Package["carrier"]; labelName: string; labelSuite?: string; merchant: string; itemName?: string; carrierWeight?: number },
 ) {
-  assert(can(actor, "package.receive"), "Only warehouse staff can scan packages in.");
+  authorize(actor, "warehouse", can(actor, "package.receive"), "Only warehouse staff can scan packages in.");
   return mutate((s) => {
     const tracking = input.inboundTracking.trim();
     const expected = s.packages.find((p) => p.inboundTracking === tracking && p.status === "incoming");
@@ -122,7 +124,7 @@ export function dockScan(
 }
 
 export function matchCustomer(actor: Actor, packageId: ID, customerId: ID) {
-  assert(can(actor, "package.edit"));
+  authorize(actor, "warehouse", can(actor, "package.edit"));
   return mutate(() => {
     const p = getPackage(packageId);
     const c = getCustomer(customerId);
@@ -150,7 +152,7 @@ export type ReceiveInput = {
 
 /** Steps 2–9 of receiving, in one business transaction. */
 export function receivePackage(actor: Actor, packageId: ID, input: ReceiveInput) {
-  assert(can(actor, "package.receive"), "Only warehouse staff can receive packages.");
+  authorize(actor, "warehouse", can(actor, "package.receive"), "Only warehouse staff can receive packages.");
   if (!(input.actualWeight > 0)) throw new BusinessError("Enter the weight.");
   return mutate((s) => {
     const p = getPackage(packageId);
@@ -222,7 +224,7 @@ export function receivePackage(actor: Actor, packageId: ID, input: ReceiveInput)
 }
 
 export function updateMeasurements(actor: Actor, packageId: ID, m: { actualWeight: number; length?: number; width?: number; height?: number }) {
-  assert(can(actor, "package.edit"));
+  authorize(actor, "warehouse", can(actor, "package.edit"));
   return mutate(() => {
     const p = getPackage(packageId);
     Object.assign(p, m);
@@ -235,7 +237,7 @@ export function updateMeasurements(actor: Actor, packageId: ID, m: { actualWeigh
 }
 
 export function addPhoto(actor: Actor, packageId: ID) {
-  assert(can(actor, "package.edit"));
+  authorize(actor, "warehouse", can(actor, "package.edit"));
   return mutate(() => {
     const p = getPackage(packageId);
     p.photos.push(`photo:${p.id}:${p.photos.length + 1}`);
@@ -247,7 +249,7 @@ export function addPhoto(actor: Actor, packageId: ID) {
 export function holdPackage(actor: Actor, packageId: ID, reason: string) {
   const p = getPackage(packageId);
   const byCustomer = actor.role === "customer";
-  assert(byCustomer ? canActOn(actor, "package.hold", p) : can(actor, "package.hold"));
+  authorize(actor, "warehouse", byCustomer ? canActOn(actor, "package.hold", p) : can(actor, "package.hold"));
   if (p.shipmentId) throw new BusinessError("This package is already in a shipment.");
   return mutate(() => {
     p.storage.holdStatus = byCustomer ? "customer_hold" : "staff_hold";
@@ -260,7 +262,7 @@ export function holdPackage(actor: Actor, packageId: ID, reason: string) {
 
 export function releaseHold(actor: Actor, packageId: ID) {
   const p = getPackage(packageId);
-  assert(canActOn(actor, "package.hold", p));
+  authorize(actor, "warehouse", canActOn(actor, "package.hold", p));
   return mutate(() => {
     p.storage.holdStatus = "none";
     p.storage.holdReason = undefined;
@@ -273,7 +275,7 @@ export function releaseHold(actor: Actor, packageId: ID) {
 /** Where it's going and how — customer or staff, before it's in a shipment. */
 export function assignDestination(actor: Actor, packageId: ID, destinationId: DestinationId, service: ServiceLevel) {
   const p = getPackage(packageId);
-  assert(canActOn(actor, "package.edit", p));
+  authorize(actor, "shipments", canActOn(actor, "package.edit", p));
   if (p.shipmentId) throw new BusinessError("Already in a shipment.");
   if (!getDestination(destinationId).services.includes(service)) throw new BusinessError("That service isn't available to this island.");
   return mutate(() => {
@@ -285,5 +287,38 @@ export function assignDestination(actor: Actor, packageId: ID, destinationId: De
     emit("PACKAGE_UPDATED", { actor, refs: { packageId: p.id, customerId: p.customerId }, summary: `Assigned to ${getDestination(destinationId).name} by ${service}` });
     if (service === "ocean") autoResolve("OVERSIZED_ITEM", { packageId: p.id }, "Switched to ocean");
     return p;
+  });
+}
+
+/**
+ * Cargo dropped at a dock or counter (bookings, courier pickups): the package is
+ * created already received, weighed by the person checking it in. No warehouse
+ * module needed — this is the shipments module's own intake.
+ */
+export function checkInCargoPackage(actor: Actor, input: { customerId: ID; description: string; actualWeight: number; destinationId: DestinationId; service: ServiceLevel; reference: string }) {
+  authorize(actor, "shipments", can(actor, "shipment.create_any"), "Only staff can check cargo in.");
+  if (!(input.actualWeight > 0)) throw new BusinessError("Enter the weight.");
+  const c = getCustomer(input.customerId);
+  return mutate((s) => {
+    const pkg = newPackage({
+      customerId: c.id,
+      labelName: customerName(c),
+      labelSuite: c.accountNumber,
+      merchant: "Customer cargo",
+      itemName: input.description.trim(),
+      carrier: "Freight",
+      inboundTracking: input.reference,
+      destinationId: input.destinationId,
+      service: input.service,
+      actualWeight: input.actualWeight,
+      billableWeight: input.actualWeight,
+      status: "received",
+    });
+    pkg.dockedAt = nowIso();
+    pkg.storage.receivedAt = nowIso();
+    pkg.photos.push(`photo:${pkg.id}:1`);
+    s.packages.push(pkg);
+    emit("PACKAGE_RECEIVED", { actor, refs: { customerId: c.id, packageId: pkg.id }, summary: `Cargo checked in: ${pkg.itemName}, ${input.actualWeight} lb (${input.reference})`, customerSummary: "Your cargo was checked in. We have it!" });
+    return pkg;
   });
 }

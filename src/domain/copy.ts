@@ -136,7 +136,7 @@ export const TEAM_LABEL: Record<Team, string> = {
 /** The six customer-facing steps on every package timeline. */
 export const JOURNEY_STEPS = [
   { key: "bought", label: "Bought" },
-  { key: "at_link", label: "Arrived at The Link" },
+  { key: "at_link", label: "Arrived at Shipping OS" },
   { key: "ready", label: "Getting ready" },
   { key: "moving", label: "Coming to The Bahamas" },
   { key: "for_you", label: "Ready for you" },

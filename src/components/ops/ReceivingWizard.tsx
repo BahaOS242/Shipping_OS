@@ -59,14 +59,14 @@ export function ReceivingWizard({ pkg, onDone }: { pkg: Package; onDone: () => v
             <div className="rounded-2xl border-2 border-dashed border-ink/30 bg-[#fffdf5] p-4 font-mono text-sm leading-relaxed">
               <p className="font-bold">SHIP TO:</p>
               <p>{pkg.labelName}</p>
-              <p>{pkg.labelSuite ? `The Link #${pkg.labelSuite}` : "(no suite number)"}</p>
+              <p>{pkg.labelSuite ? `Shipping OS #${pkg.labelSuite}` : "(no suite number)"}</p>
               <p>123 Demo Warehouse Way</p>
               <p>Hollywood, FL 33020</p>
               <p className="mt-2 text-xs">{pkg.carrier} · {pkg.inboundTracking}</p>
             </div>
             <div className="text-center">
               <QR value={pkg.id} size={110} />
-              <p className="mt-1 text-xs text-ink-mute">The Link label printed</p>
+              <p className="mt-1 text-xs text-ink-mute">Shipping OS label printed</p>
             </div>
             <p className="basis-full text-ink-soft">✓ Scanned. This box is now <strong className="font-mono">{pkg.id}</strong> everywhere in the system.</p>
           </div>

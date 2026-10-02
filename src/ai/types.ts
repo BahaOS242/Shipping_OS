@@ -1,5 +1,5 @@
 import type { Channel, DestinationId, ID, PackageStatus } from "@/domain/types";
-import type { ToolTrace } from "./tools";
+import type { ToolTrace } from "./executor";
 
 export type AgentInput = { kind: "text"; text: string } | { kind: "action"; id: string; label?: string };
 

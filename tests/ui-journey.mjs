@@ -38,7 +38,7 @@ await step("Customer buys an Amazon product and tells us it's coming", async () 
   pkgId = p.url().split("/").pop();
   await expectText("Coming to our warehouse");
 });
-await step("Customer ships it to The Link U.S. address (address shown on profile)", async () => { await go("/profile"); await expectText("The Link #TL10284"); });
+await step("Customer ships it to Shipping OS U.S. address (address shown on profile)", async () => { await go("/profile"); await expectText("Shipping OS #TL10284"); });
 await step("Customer uploads the Amazon receipt → simulated AI extraction", async () => {
   await go(`/invoices?package=${pkgId}`);
   await p.getByRole("button", { name: "Use a sample receipt" }).click();

@@ -2,10 +2,11 @@
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
 import { CLAIM_REASON } from "@/domain/copy";
-import { assert, can, canActOn } from "@/domain/roles";
+import { can, canActOn } from "@/domain/roles";
 import type { Actor, Claim, ClaimReason, ClaimStatus, ID } from "@/domain/types";
 import { emit } from "@/events/bus";
 import { BusinessError, byId } from "./_shared";
+import { authorize } from "./access";
 
 export const getClaim = (id: ID) => byId(db().claims, id, "Claim");
 
@@ -16,12 +17,13 @@ export function listClaims(f: { customerId?: ID; status?: ClaimStatus | "open" }
 }
 
 export function createClaim(actor: Actor, input: { customerId: ID; reason: ClaimReason; description: string; packageId?: ID; shipmentId?: ID; billId?: ID; photos?: string[] }) {
-  assert(canActOn(actor, "claim.manage", { customerId: input.customerId }), "You can only open claims on your own account.");
+  authorize(actor, "support", canActOn(actor, "claim.manage", { customerId: input.customerId }), "You can only open claims on your own account.");
   if (input.description.trim().length < 5) throw new BusinessError("Tell us a little about what happened.");
   return mutate((s) => {
     const pkg = input.packageId ? s.packages.find((p) => p.id === input.packageId) : undefined;
     const c: Claim = {
       id: `CLM-${nextSeq("clm", 700)}`,
+      organizationId: s.organizationId,
       customerId: input.customerId,
       packageId: input.packageId,
       shipmentId: input.shipmentId ?? pkg?.shipmentId,
@@ -41,7 +43,7 @@ export function createClaim(actor: Actor, input: { customerId: ID; reason: Claim
 }
 
 export function updateClaim(actor: Actor, id: ID, status: ClaimStatus, message: string) {
-  assert(can(actor, "claim.manage"), "Only staff can update claims.");
+  authorize(actor, "support", can(actor, "claim.manage"), "Only staff can update claims.");
   if (!message.trim()) throw new BusinessError("Add a note for the customer.");
   return mutate(() => {
     const c = getClaim(id);
@@ -55,7 +57,7 @@ export function updateClaim(actor: Actor, id: ID, status: ClaimStatus, message: 
 
 export function customerClaimReply(actor: Actor, id: ID, text: string) {
   const c = getClaim(id);
-  assert(canActOn(actor, "claim.manage", c));
+  authorize(actor, "support", canActOn(actor, "claim.manage", c));
   return mutate(() => {
     c.updates.push({ at: nowIso(), by: actor.name, text });
     if (c.status === "waiting_for_customer") c.status = "under_review";

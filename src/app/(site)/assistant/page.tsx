@@ -15,13 +15,13 @@ function Inner() {
   const sp = useSearchParams();
   const pkgId = sp.get("package");
   return (
-    <CustomerView title="Link Assistant">
+    <CustomerView title="Shipping OS Assistant">
       {(me) => {
         const p = pkgId ? svc.findPackage(pkgId) : undefined;
         return (
           <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start">
             <div>
-              <h1 className="mb-4 text-4xl font-black tracking-tight">Link Assistant</h1>
+              <h1 className="mb-4 text-4xl font-black tracking-tight">Shipping OS Assistant</h1>
               <ChatAssistant key={p?.id ?? "a"} tall customerId={me.id} autoAsk={p && p.customerId === me.id ? { id: `package:${p.id}`, label: `Where is my ${p.merchant} package?` } : undefined} />
             </div>
             <aside className="space-y-4 lg:pt-14">
@@ -37,7 +37,7 @@ function Inner() {
               </div>
               <div className="rounded-[var(--radius-card)] bg-ink p-6 text-white">
                 <h2 className="text-xl font-extrabold">What it can&apos;t do</h2>
-                <p className="mt-2 text-white/80">It never makes up statuses, prices or balances — every answer comes from The Link&apos;s records through safe, read-only tools. It can&apos;t take payments, give refunds or approve customs. Only people can.</p>
+                <p className="mt-2 text-white/80">It never makes up statuses, prices or balances — every answer comes from Shipping OS&apos;s records through safe, read-only tools. It can&apos;t take payments, give refunds or approve customs. Only people can.</p>
               </div>
               <ButtonLink href="/whatsapp-demo" variant="whatsapp" full icon="💬">Try it on WhatsApp</ButtonLink>
             </aside>

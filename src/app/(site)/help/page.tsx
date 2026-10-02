@@ -12,7 +12,7 @@ const FAQ = [
   { q: "What do I do next?", a: "Your dashboard lists anything you need to do — like uploading a receipt or paying a bill. Otherwise, nothing! We message you when things move.", href: "/dashboard" },
   { q: "How much will it cost?", a: "Use the calculator: pick the island, the weight (and size if you know it), and air or ocean.", href: "/shipping-calculator" },
   { q: "How do I get my package?", a: "Pick it up at your pickup point, or ask for home delivery where available. We tell you when it's ready.", href: "/locations" },
-  { q: "Who do I talk to if I'm confused?", a: "Ask Link Assistant here, message us on WhatsApp, or open a help request — a real person replies.", href: "/support" },
+  { q: "Who do I talk to if I'm confused?", a: "Ask Shipping OS Assistant here, message us on WhatsApp, or open a help request — a real person replies.", href: "/support" },
   { q: "Something arrived damaged", a: "Report a problem with a photo. Our team reviews every claim.", href: "/claims/new" },
 ];
 
@@ -23,7 +23,7 @@ export default function HelpPage() {
         const loc = svc.getLocation(me.preferredPickupLocationId);
         return (
           <div className="space-y-12">
-            <header><h1 className="text-4xl font-black tracking-tight sm:text-5xl">How can we help?</h1><p className="mt-2 text-xl text-ink-soft">Ask Link Assistant anything. A real person is one tap away.</p></header>
+            <header><h1 className="text-4xl font-black tracking-tight sm:text-5xl">How can we help?</h1><p className="mt-2 text-xl text-ink-soft">Ask Shipping OS Assistant anything. A real person is one tap away.</p></header>
             <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr] lg:items-start">
               <ChatAssistant customerId={me.id} />
               <div className="space-y-4">

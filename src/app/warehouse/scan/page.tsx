@@ -11,7 +11,7 @@ import { useAction } from "@/components/ui/Toast";
 import { QR } from "@/components/ui/Visuals";
 import * as svc from "@/services";
 
-/** Scanner simulation: type/scan a The Link ID, a carrier tracking number, or tap a label. */
+/** Scanner simulation: type/scan a Shipping OS ID, a carrier tracking number, or tap a label. */
 export default function ScanPage() {
   useLive();
   const router = useRouter();
@@ -36,7 +36,7 @@ export default function ScanPage() {
   }
 
   return (
-    <OpsPage title="Scan a package" sub="Point the scanner at a The Link QR label or a carrier barcode. (Simulated — type or tap below.)">
+    <OpsPage title="Scan a package" sub="Point the scanner at a Shipping OS QR label or a carrier barcode. (Simulated — type or tap below.)">
       <form onSubmit={(e) => { e.preventDefault(); scan(code); }} className="flex max-w-xl gap-2">
         <label htmlFor="scan" className="sr-only">Code</label>
         <Input id="scan" autoFocus value={code} onChange={(e) => setCode(e.target.value)} placeholder="TL-PKG-10482 or tracking number" className="!min-h-14 !text-lg font-mono" />
@@ -61,7 +61,7 @@ export default function ScanPage() {
           </ul>
         )}
       </Section>
-      <p className="text-sm text-ink-mute">Tip: the same ID works everywhere — try it in the global search, or ask Link Assistant about it. <Link href="/warehouse" className="font-bold text-sea-700">Back to warehouse</Link></p>
+      <p className="text-sm text-ink-mute">Tip: the same ID works everywhere — try it in the global search, or ask Shipping OS Assistant about it. <Link href="/warehouse" className="font-bold text-sea-700">Back to warehouse</Link></p>
     </OpsPage>
   );
 }

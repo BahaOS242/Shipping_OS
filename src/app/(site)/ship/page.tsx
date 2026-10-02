@@ -29,7 +29,7 @@ const SIZES = [
   { lbs: 150, label: "Very large", hint: "Like a sofa" },
 ];
 const NEXT = [
-  ["📮", "You send it to The Link."],
+  ["📮", "You send it to Shipping OS."],
   ["📦", "We receive it."],
   ["🏷️", "We prepare it."],
   ["✈️", "We send it to The Bahamas."],
@@ -67,7 +67,7 @@ function Wizard() {
               <div className="animate-pop">
                 <p className="text-6xl" aria-hidden>🎉</p>
                 <h1 className="mt-3 text-4xl font-black tracking-tight sm:text-5xl">You&apos;re all set!</h1>
-                <p className="mt-2 text-xl text-ink-soft">Now send your item to your The Link address. That&apos;s the only thing left to do.</p>
+                <p className="mt-2 text-xl text-ink-soft">Now send your item to your Shipping OS address. That&apos;s the only thing left to do.</p>
                 <div className="mt-6 rounded-2xl bg-white p-5 ring-1 ring-sand-200">
                   <p className="text-sm font-bold uppercase tracking-wider text-ink-mute">Your estimate</p>
                   <p className="mt-1 text-3xl font-black">{fmtUsd(quote.total)} <DemoBadge className="align-middle">Demo</DemoBadge></p>
@@ -76,7 +76,7 @@ function Wizard() {
                 <p className="mt-4 text-lg font-semibold text-ink-soft">🔔 We&apos;ll message you on WhatsApp when it arrives.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <ButtonLink href="/packages/new" icon="➕">Tell us it&apos;s coming</ButtonLink>
-                  <ButtonLink href="/assistant" variant="secondary" icon="💬">Ask The Link</ButtonLink>
+                  <ButtonLink href="/assistant" variant="secondary" icon="💬">Ask Shipping OS</ButtonLink>
                 </div>
               </div>
               <ShoppingAddressCard address={svc.shoppingAddress(me)} />

@@ -39,7 +39,12 @@ export type WaWebhookPayload = {
 };
 
 export function extractMessages(payload: WaWebhookPayload): WaInboundMessage[] {
-  return payload.entry?.flatMap((e) => e.changes.flatMap((c) => c.value.messages ?? [])) ?? [];
+  return extractInbound(payload).map((x) => x.message);
+}
+
+/** Each inbound message with the business number it was sent to. */
+export function extractInbound(payload: WaWebhookPayload): { phoneNumberId: string; message: WaInboundMessage }[] {
+  return payload.entry?.flatMap((e) => e.changes.flatMap((c) => (c.value.messages ?? []).map((message) => ({ phoneNumberId: c.value.metadata.phone_number_id, message })))) ?? [];
 }
 
 /* ---------- Outbound (Cloud API send-message bodies) ---------- */
@@ -130,7 +135,7 @@ export function getWhatsAppSender(): WhatsAppSender {
 }
 
 /** Helper for the demo UI: build an inbound webhook payload like Meta would send. */
-export function buildInboundPayload(from: string, name: string, msg: { text: string } | { buttonId: string; title: string }): WaWebhookPayload {
+export function buildInboundPayload(from: string, name: string, msg: { text: string } | { buttonId: string; title: string }, phoneNumberId = svc.currentOrganization().channels?.whatsappPhoneNumberId ?? "DEMO_PHONE_ID"): WaWebhookPayload {
   const base = { from, id: `wamid.IN_${Date.now()}`, timestamp: String(Math.floor(Date.now() / 1000)) };
   const message: WaInboundMessage =
     "text" in msg
@@ -146,7 +151,7 @@ export function buildInboundPayload(from: string, name: string, msg: { text: str
             field: "messages",
             value: {
               messaging_product: "whatsapp",
-              metadata: { display_phone_number: "12425550100", phone_number_id: "DEMO_PHONE_ID" },
+              metadata: { display_phone_number: "12425550100", phone_number_id: phoneNumberId },
               contacts: [{ profile: { name }, wa_id: from }],
               messages: [message],
             },
@@ -159,16 +164,24 @@ export function buildInboundPayload(from: string, name: string, msg: { text: str
 
 /* ---------- The channel handler (transport-agnostic) ---------- */
 
-/** Per-number conversation memory. Production: Redis/Postgres keyed by wa_id. */
-const contexts = new Map<string, AgentContext>();
-
 /**
  * Inbound webhook payload → agent → outbound payloads. Used by the API route
  * (server) and by the WhatsApp demo screen (in-browser transport).
+ *
+ * Tenant boundary: runs inside ONE organization's scope (the owner of the
+ * business number). Conversation identity is (organization, phone number):
+ * the customer is looked up by phone in this organization only, and the
+ * assistant's memory is stored on that organization's conversation record —
+ * there is no process-wide cache keyed by phone number.
  */
 export async function handleWhatsAppWebhook(payload: WaWebhookPayload, sender: WhatsAppSender = getWhatsAppSender()) {
   const results = [];
-  for (const msg of extractMessages(payload)) {
+  const org = svc.currentOrganization();
+  for (const { phoneNumberId, message: msg } of extractInbound(payload)) {
+    if (org.channels?.whatsappPhoneNumberId && phoneNumberId !== org.channels.whatsappPhoneNumberId) {
+      results.push({ from: msg.from, intent: "wrong_organization", outbound: [] as WaOutbound[], note: "Message addressed to another organization's number — ignored." });
+      continue;
+    }
     const customer = svc.findCustomerByPhone(msg.from);
     if (!customer) {
       results.push({ from: msg.from, intent: "unknown_number", outbound: [] as WaOutbound[], note: "Unknown number — production would start a verified sign-up flow." });
@@ -177,8 +190,8 @@ export async function handleWhatsAppWebhook(payload: WaWebhookPayload, sender: W
     const input: AgentInput = msg.type === "text" ? { kind: "text", text: msg.text.body } : { kind: "action", id: msg.interactive.button_reply.id, label: msg.interactive.button_reply.title };
     const shown = msg.type === "text" ? msg.text.body : msg.interactive.button_reply.title;
     svc.logConversation(customer.id, "whatsapp", "customer", shown);
-    const reply = await handleAgentRequest({ channel: "whatsapp", customerId: customer.id, input, context: contexts.get(msg.from) });
-    contexts.set(msg.from, reply.context);
+    const reply = await handleAgentRequest({ channel: "whatsapp", customerId: customer.id, input, context: svc.getAgentContext(customer.id, "whatsapp") as AgentContext | undefined });
+    svc.saveAgentContext(customer.id, "whatsapp", reply.context);
     reply.messages.forEach((m, i) => svc.logConversation(customer.id, "whatsapp", "assistant", toWhatsAppText(m.text), undefined, i === 0 ? reply.intent : undefined));
     const outbound = agentReplyToWhatsApp(reply, msg.from);
     const sent = await Promise.all(outbound.map((m) => sender.send(m)));

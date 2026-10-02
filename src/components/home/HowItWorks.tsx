@@ -1,6 +1,6 @@
 const STEPS = [
   { icon: "🛒", title: "Buy", text: "Shop at any U.S. store — Amazon, Walmart, anywhere." },
-  { icon: "📮", title: "Ship to The Link", text: "Use your personal The Link U.S. address at checkout." },
+  { icon: "📮", title: "Ship to Shipping OS", text: "Use your personal Shipping OS U.S. address at checkout." },
   { icon: "📦", title: "We receive it", text: "We scan, weigh and photograph it, and tell you it's here." },
   { icon: "✈️", title: "We send it", text: "Alone or put together with your other packages — by air or ocean." },
   { icon: "🙌", title: "You get it", text: "Pick it up, or we bring it to your door." },
@@ -12,7 +12,7 @@ export function HowItWorks({ id = "how-it-works", heading = true }: { id?: strin
     <section id={id} aria-labelledby={`${id}-h`} className="scroll-mt-28">
       {heading && (
         <>
-          <h2 id={`${id}-h`} className="text-3xl font-extrabold tracking-tight sm:text-4xl">How The Link works</h2>
+          <h2 id={`${id}-h`} className="text-3xl font-extrabold tracking-tight sm:text-4xl">How Shipping OS works</h2>
           <p className="mt-2 text-lg text-ink-soft">Five steps. We handle the hard parts.</p>
         </>
       )}

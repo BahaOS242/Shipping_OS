@@ -57,7 +57,7 @@ export function WhatsAppDemo({ me }: { me: Customer }) {
                 <svg viewBox="0 0 40 40" className="h-8 w-8"><circle cx="16" cy="20" r="7.5" fill="none" stroke="#0a7f8b" strokeWidth="3.5" /><circle cx="24" cy="20" r="7.5" fill="none" stroke="#ffc72c" strokeWidth="3.5" /></svg>
               </span>
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1 font-bold leading-tight">The Link <span className="grid h-4 w-4 place-items-center rounded-full bg-wa-green text-[10px]" aria-label="verified business">✓</span></p>
+                <p className="flex items-center gap-1 font-bold leading-tight">Shipping OS <span className="grid h-4 w-4 place-items-center rounded-full bg-wa-green text-[10px]" aria-label="verified business">✓</span></p>
                 <p className="text-xs text-white/75">{typing ? "typing…" : "Business account · Demo"}</p>
               </div>
             </div>
@@ -69,7 +69,7 @@ export function WhatsAppDemo({ me }: { me: Customer }) {
                 return (
                   <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[85%] animate-rise rounded-xl px-3 py-2 text-[15px] leading-snug text-[#111b21] shadow-sm ${mine ? "rounded-tr-sm bg-wa-bubble" : "rounded-tl-sm bg-white"}`}>
-                      {m.author === "staff" && <p className="mb-0.5 text-xs font-bold text-coral-700">{m.staffName} · The Link team (a real person)</p>}
+                      {m.author === "staff" && <p className="mb-0.5 text-xs font-bold text-coral-700">{m.staffName} · Shipping OS team (a real person)</p>}
                       <RichText text={m.text} whatsapp />
                       <span className="float-right ml-2 mt-1 text-[11px] text-[#667781]">{time(m.at)} {mine && <span className="text-sky-500">✓✓</span>}</span>
                     </div>
@@ -98,9 +98,9 @@ export function WhatsAppDemo({ me }: { me: Customer }) {
       <div className="space-y-4">
         <div className="rounded-[var(--radius-card)] bg-white p-6 ring-1 ring-sand-200/70">
           <h2 className="text-2xl font-extrabold">One system, every channel</h2>
-          <p className="mt-2 text-lg text-ink-soft">WhatsApp uses the <strong>same Link Assistant, tools and data</strong> as the website. Package updates you get here are the same events the warehouse creates. Staff replies from the support queue land here too.</p>
+          <p className="mt-2 text-lg text-ink-soft">WhatsApp uses the <strong>same Shipping OS Assistant, tools and data</strong> as the website. Package updates you get here are the same events the warehouse creates. Staff replies from the support queue land here too.</p>
           <ol className="mt-4 flex flex-wrap items-center gap-2 text-[15px] font-semibold">
-            {["WhatsApp", "Webhook", "Link Assistant", "Tools + authorization", "Services", "Data"].map((s, i) => (
+            {["WhatsApp", "Webhook", "Shipping OS Assistant", "Tools + authorization", "Services", "Data"].map((s, i) => (
               <li key={s} className="flex items-center gap-2">{i > 0 && <span aria-hidden className="text-sea-500">→</span>}<span className="rounded-xl bg-sand-50 px-3 py-2 ring-1 ring-sand-200">{s}</span></li>
             ))}
           </ol>

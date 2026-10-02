@@ -1,18 +1,30 @@
 /**
- * THE STORE — one source of truth.
+ * THE STORE — one source of truth, partitioned per organization.
  *
- * All entities live in one state object. Services are the only code that
- * mutates it (via `mutate`). Screens subscribe with `useLive()` and re-read
- * through services, so every view reflects the same reality instantly.
+ * Platform state holds the organizations and one data partition (TenantState)
+ * per organization. `db()` returns ONLY the partition of the active tenant, so
+ * every service is tenant-scoped by construction: a record that belongs to
+ * another organization is simply not reachable, whatever ID is asked for.
+ * (Production: one PostgreSQL schema with `organization_id` on every tenant
+ * table and row-level security keyed on the request's organization — the same
+ * semantics as `withTenant()`.)
+ *
+ * The active tenant is the innermost `withTenant()` scope (API routes, tests,
+ * background jobs) or, failing that, the signed-in session's organization.
+ *
+ * Services are the only code that mutates state (via `mutate`). Screens
+ * subscribe with `useLive()` and re-read through services.
  *
  * Storage adapter:
  *  - DEMO (browser): persisted to localStorage, synced across tabs.
  *  - Server (API routes): an in-memory copy of the seed per instance.
- *  - PRODUCTION: replace with a PostgreSQL-backed repository behind the same services.
+ *  - PRODUCTION: a PostgreSQL-backed repository behind the same services.
  */
 import type {
+  AiProposal,
   AuditEvent,
   Bill,
+  Booking,
   Claim,
   Conversation,
   Customer,
@@ -20,33 +32,46 @@ import type {
   Destination,
   ID,
   Location,
+  Manifest,
   Notification,
   OpsException,
+  Organization,
   Package,
   Payment,
+  Port,
   Procurement,
   PurchaseInvoice,
   Quote,
   Role,
+  Route,
+  Schedule,
   Shipment,
   StaffUser,
   SupportTicket,
+  Vessel,
   Voyage,
 } from "@/domain/types";
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 5;
 const STORAGE_KEY = "thelink-os";
 
-export type Session = { role: Role; customerId: ID; staffId: ID };
+/** Mock authentication: who is signed in, to which organization. */
+export type Session = { organizationId: ID; role: Role; customerId: ID; staffId: ID };
 
-export type DbState = {
-  schema: number;
-  seededAt: string;
+/** One organization's data. Every row also carries `organizationId`. */
+export type TenantState = {
+  organizationId: ID;
   customers: Customer[];
   staff: StaffUser[];
   destinations: Destination[];
   locations: Location[];
   voyages: Voyage[];
+  ports: Port[];
+  routes: Route[];
+  vessels: Vessel[];
+  schedules: Schedule[];
+  bookings: Booking[];
+  manifests: Manifest[];
   packages: Package[];
   shipments: Shipment[];
   purchaseInvoices: PurchaseInvoice[];
@@ -61,33 +86,113 @@ export type DbState = {
   events: AuditEvent[];
   procurements: Procurement[];
   quotes: Quote[];
+  aiProposals: AiProposal[];
+};
+
+/** What services see. Kept as an alias so existing code reads naturally. */
+export type DbState = TenantState;
+
+export type PlatformState = {
+  schema: number;
+  seededAt: string;
+  organizations: Organization[];
+  tenants: Record<ID, TenantState>;
   session: Session;
+  /** Platform-wide sequences, so IDs never collide across tenants. */
   seq: Record<string, number>;
 };
 
-type Seeder = () => DbState;
+export function emptyTenant(organizationId: ID): TenantState {
+  return {
+    organizationId,
+    customers: [],
+    staff: [],
+    destinations: [],
+    locations: [],
+    voyages: [],
+    ports: [],
+    routes: [],
+    vessels: [],
+    schedules: [],
+    bookings: [],
+    manifests: [],
+    packages: [],
+    shipments: [],
+    purchaseInvoices: [],
+    bills: [],
+    payments: [],
+    exceptions: [],
+    deliveries: [],
+    claims: [],
+    tickets: [],
+    conversations: [],
+    notifications: [],
+    events: [],
+    procurements: [],
+    quotes: [],
+    aiProposals: [],
+  };
+}
+
+type Seeder = () => PlatformState;
 let seeder: Seeder | null = null;
 /** Registered by src/data/seed.ts (avoids an import cycle). */
 export function registerSeeder(fn: Seeder) {
   seeder = fn;
 }
 
-let state: DbState | null = null;
+let state: PlatformState | null = null;
+
+/**
+ * Where the active tenant scope lives.
+ *  - Default: a synchronous stack (browser, seed, sequential tests). It refuses
+ *    async callbacks, because a stack can't follow work across `await`s.
+ *  - Server: `installAsyncTenantScope()` (src/server/tenantScope.ts) swaps in
+ *    AsyncLocalStorage, one context per request, and is STRICT: with no scope,
+ *    `tenantId()` throws instead of falling back to the demo session, so a
+ *    request can never silently act as some other organization.
+ */
+export type TenantScopeProvider = {
+  current(): ID | undefined;
+  run<T>(organizationId: ID, fn: () => T): T;
+  /** Strict providers have no fallback organization outside a scope. */
+  strict?: boolean;
+};
+const scopes: ID[] = [];
+const stackProvider: TenantScopeProvider = {
+  current: () => scopes.at(-1),
+  run(organizationId, fn) {
+    scopes.push(organizationId);
+    try {
+      const out = fn();
+      if (out && typeof (out as { then?: unknown }).then === "function") {
+        throw new TenantScopeError("Async work in withTenant() needs the request-scoped provider (installAsyncTenantScope).");
+      }
+      return out;
+    } finally {
+      scopes.pop();
+    }
+  },
+};
+let scopeProvider: TenantScopeProvider = stackProvider;
+export function setTenantScopeProvider(p: TenantScopeProvider) {
+  scopeProvider = p;
+}
 let version = 0;
 const listeners = new Set<() => void>();
 const isBrowser = typeof window !== "undefined";
 
-function fresh(): DbState {
+function fresh(): PlatformState {
   if (!seeder) throw new Error("Seeder not registered — import '@/services' before using the store.");
   return seeder();
 }
 
-function load(): DbState {
+function load(): PlatformState {
   if (isBrowser) {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as DbState;
+        const parsed = JSON.parse(raw) as PlatformState;
         if (parsed.schema === SCHEMA_VERSION) return parsed;
       }
     } catch {
@@ -97,13 +202,37 @@ function load(): DbState {
   return fresh();
 }
 
-/** Current state (lazy-initialized). */
-export function db(): DbState {
+/** Whole-platform state (organizations, sessions, every partition). Platform services only. */
+export function platform(): PlatformState {
   if (!state) {
     state = load();
     if (isBrowser) persist();
   }
   return state;
+}
+
+/** The active organization: innermost withTenant() scope, else the session's. */
+export class TenantScopeError extends Error {}
+
+export function tenantId(): ID {
+  const scoped = scopeProvider.current();
+  if (scoped) return scoped;
+  if (scopeProvider.strict) throw new TenantScopeError("No organization in scope for this request.");
+  return platform().session.organizationId; // browser demo: the signed-in session
+}
+
+/** The active tenant's data partition. Everything tenant-owned is read through here. */
+export function db(): TenantState {
+  const id = tenantId();
+  const t = platform().tenants[id];
+  if (!t) throw new TenantScopeError(`No data partition for organization ${id}.`);
+  return t;
+}
+
+/** Run `fn` as organization `organizationId` (API requests, jobs, tests). */
+export function withTenant<T>(organizationId: ID, fn: () => T): T {
+  if (!platform().tenants[organizationId]) throw new TenantScopeError(`Unknown organization ${organizationId}.`);
+  return scopeProvider.run(organizationId, fn);
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -124,9 +253,14 @@ function persist() {
 if (isBrowser) window.addEventListener("pagehide", () => saveTimer && flush());
 
 let depth = 0;
-/** Every write goes through here. Nested calls commit once. */
-export function mutate<T>(fn: (s: DbState) => T): T {
-  const s = db();
+/** Every tenant write goes through here. Nested calls commit once. */
+export function mutate<T>(fn: (s: TenantState) => T): T {
+  return mutatePlatform(() => fn(db()));
+}
+
+/** Platform-level writes (organizations, sessions). */
+export function mutatePlatform<T>(fn: (p: PlatformState) => T): T {
+  const s = platform();
   depth++;
   try {
     return fn(s);
@@ -141,7 +275,7 @@ export function mutate<T>(fn: (s: DbState) => T): T {
 }
 
 export function nextSeq(kind: string, start: number) {
-  const s = db();
+  const s = platform();
   s.seq[kind] = (s.seq[kind] ?? start) + 1;
   return s.seq[kind];
 }
@@ -154,7 +288,7 @@ export function resetDemo() {
 }
 
 /** Build a new state from a seeder without touching the live one (used by the seed script). */
-export function withState<T>(s: DbState, fn: () => T): T {
+export function withState<T>(s: PlatformState, fn: () => T): T {
   const prev = state;
   state = s;
   depth++;
@@ -172,7 +306,7 @@ export function subscribeStore(l: () => void) {
   const onStorage = (e: StorageEvent) => {
     if (e.key !== STORAGE_KEY || !e.newValue) return;
     try {
-      const next = JSON.parse(e.newValue) as DbState;
+      const next = JSON.parse(e.newValue) as PlatformState;
       if (next.schema !== SCHEMA_VERSION) return;
       state = next;
       version++;
@@ -190,6 +324,6 @@ export function subscribeStore(l: () => void) {
 
 /** Snapshot for useSyncExternalStore. Initializes the store on first read. */
 export function storeVersion() {
-  db();
+  platform();
   return version;
 }

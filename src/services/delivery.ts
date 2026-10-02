@@ -5,17 +5,31 @@
  */
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
-import { assert, can } from "@/domain/roles";
+import { can } from "@/domain/roles";
 import type { Actor, Delivery, DeliveryStatus, ID } from "@/domain/types";
 import { SYSTEM, emit } from "@/events/bus";
 import { BusinessError, byId } from "./_shared";
+import { authorize, isModuleEnabled } from "./access";
 import { addCharge } from "./billing";
 import { getCustomer } from "./customers";
 import { ensureException } from "./exceptions";
 import { getDestination, getLocation } from "./locations";
 import { getShipment, onShipmentArrived, shipmentPackages } from "./shipments";
 
+/** Drivers without their own sign-in (vans, partner couriers) — the original demo fleet. */
 export const DRIVERS = ["Andre (Van 2)", "Kayla (Van 1)", "Rodney (Truck 1)", "Partner courier — Exuma", "Partner courier — Abaco"];
+
+/** Who can be assigned a run: the organization's driver accounts, else the demo fleet. */
+export function listDrivers() {
+  const staff = db().staff.filter((u) => u.role === "driver").map((u) => u.name);
+  return staff.length ? staff : DRIVERS;
+}
+
+/** A driver's run: their deliveries that are planned or on the road, plus today's completed ones. */
+export function driverRun(driver: string) {
+  const today = new Date().toDateString();
+  return db().deliveries.filter((d) => d.driver === driver && (["scheduled", "rescheduled", "out_for_delivery"].includes(d.status) || (d.proof && new Date(d.proof.at).toDateString() === today)));
+}
 
 export const getDelivery = (id: ID) => byId(db().deliveries, id, "Delivery");
 export const deliveryForShipment = (shipmentId?: ID) => db().deliveries.find((d) => d.shipmentId === shipmentId);
@@ -27,12 +41,14 @@ export function listDeliveries(f: { status?: DeliveryStatus; method?: Delivery["
 }
 
 onShipmentArrived((sh, actor) => {
+  if (!isModuleEnabled("delivery")) return; // no last-mile module: the shipment simply arrives
   const c = getCustomer(sh.customerId);
   const dest = getDestination(sh.destinationId);
   const pickup = sh.deliveryMethod === "pickup" || !dest.homeDelivery;
   const loc = getLocation(dest.pickupLocationIds[0]);
   const d: Delivery = {
     id: `DLV-${nextSeq("dlv", 800)}`,
+    organizationId: sh.organizationId,
     shipmentId: sh.id,
     customerId: c.id,
     method: pickup ? "pickup" : "home_delivery",
@@ -51,10 +67,16 @@ onShipmentArrived((sh, actor) => {
   }
 });
 
-function act(actor: Actor, id: ID, fn: (d: Delivery) => void) {
-  assert(can(actor, "delivery.manage"), "Only the delivery team can do that.");
+/**
+ * `manage` = planning (schedule); `drive` = working the run (dispatch, deliver, fail).
+ * A driver may only work deliveries assigned to them.
+ */
+function act(actor: Actor, id: ID, fn: (d: Delivery) => void, kind: "manage" | "drive" = "manage") {
+  const permitted = can(actor, "delivery.manage") || (kind === "drive" && can(actor, "delivery.driver"));
+  authorize(actor, "delivery", permitted, "Only the delivery team can do that.");
   return mutate(() => {
     const d = getDelivery(id);
+    if (kind === "drive" && actor.role === "driver" && d.driver !== actor.name) throw new BusinessError("This delivery isn't on your run.");
     fn(d);
     return d;
   });
@@ -72,7 +94,7 @@ export const scheduleDelivery = (actor: Actor, id: ID, input: { date: string; fr
     d.status = again ? "rescheduled" : "scheduled";
     const sh = getShipment(d.shipmentId);
     for (const p of shipmentPackages(sh)) p.status = "ready";
-    if (!again && d.fee > 0) addCharge(SYSTEM, { customerId: d.customerId, shipmentId: d.shipmentId, kind: "delivery", description: `Home delivery — ${getDestination(sh.destinationId).name}`, amount: d.fee });
+    if (!again && d.fee > 0 && isModuleEnabled("billing")) addCharge(SYSTEM, { customerId: d.customerId, shipmentId: d.shipmentId, kind: "delivery", description: `Home delivery — ${getDestination(sh.destinationId).name}`, amount: d.fee });
     const when = new Date(input.date).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
     emit("DELIVERY_SCHEDULED", { actor, refs: { customerId: d.customerId, shipmentId: d.shipmentId, deliveryId: d.id }, summary: `${again ? "Rescheduled" : "Scheduled"} ${when} ${input.from}–${input.to}, ${input.driver}`, customerSummary: `Delivery ${again ? "rescheduled" : "scheduled"}: ${when}, ${input.from}–${input.to}.` });
   });
@@ -84,7 +106,7 @@ export const dispatchDelivery = (actor: Actor, id: ID) =>
     d.attempts++;
     getShipment(d.shipmentId).status = "out_for_delivery";
     emit("OUT_FOR_DELIVERY", { actor, refs: { customerId: d.customerId, shipmentId: d.shipmentId, deliveryId: d.id }, summary: `Out for delivery with ${d.driver}`, customerSummary: "Your package is out for delivery 🚚" });
-  });
+  }, "drive");
 
 function signature(name: string) {
   // A simple generated squiggle — simulated proof of delivery.
@@ -111,7 +133,7 @@ export const completeDelivery = (actor: Actor, id: ID, input: { receivedBy: stri
       summary: `${d.method === "pickup" ? "Collected" : "Delivered"} — received by ${d.proof.receivedBy}`,
       customerSummary: d.method === "pickup" ? "You picked up your package. Delivered 🎉" : "Delivered 🎉",
     });
-  });
+  }, "drive");
 
 export const failDelivery = (actor: Actor, id: ID, reason: string) =>
   act(actor, id, (d) => {
@@ -121,4 +143,4 @@ export const failDelivery = (actor: Actor, id: ID, reason: string) =>
     getShipment(d.shipmentId).status = "arrived";
     emit("DELIVERY_FAILED", { actor, refs: { customerId: d.customerId, shipmentId: d.shipmentId, deliveryId: d.id }, summary: `Delivery failed: ${reason}`, customerSummary: "We missed you today. We'll set a new delivery time." });
     if (/address|find|gate|wrong/i.test(reason)) ensureException({ type: "ADDRESS_PROBLEM", customerId: d.customerId, shipmentId: d.shipmentId, detail: reason });
-  });
+  }, "drive");

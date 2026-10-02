@@ -62,7 +62,7 @@ function NewClaim() {
                   </label>
                   <p className="mt-1 text-xs text-ink-mute">Demo: photos stay on your device; we show a placeholder.</p>
                 </div>
-                <Button type="submit" size="xl" full>Send to The Link</Button>
+                <Button type="submit" size="xl" full>Send to Shipping OS</Button>
               </div>
             )}
           </form>

@@ -1,13 +1,45 @@
 /**
- * THE LINK — domain model (one source of truth).
+ * SHIPPING OS — domain model (one source of truth).
  *
  * Every screen, the AI assistant, WhatsApp and the API read these entities
  * through the service layer. Shapes mirror the intended PostgreSQL schema.
  * All records in the demo are fictional (DEMO DATA).
  */
 
+import type { BusinessType } from "@/platform/businessTypes";
+import type { WidgetId } from "@/platform/dashboard";
+import type { ModuleId } from "@/platform/modules";
+
 export type ID = string;
 export type ISODate = string;
+
+/* ------------------------------------------------------------------ */
+/* Organizations (tenants)                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every organization-owned record carries its tenant. Data is also partitioned
+ * per organization in the store (production: `organization_id` column + RLS).
+ */
+export type TenantOwned = { organizationId: ID };
+
+export type Organization = {
+  id: ID;
+  /** URL-safe, unique: lowercase letters, digits, dashes. */
+  slug: string;
+  name: string;
+  businessType: BusinessType;
+  status: "active" | "suspended";
+  /** Entitlements — always dependency-complete (see resolveModules). */
+  modules: ModuleId[];
+  branding: { primaryColor: string; logoText: string; logoUrl?: string; tagline?: string };
+  contact: { email?: string; phone?: string; address?: string };
+  /** Optional dashboard override; defaults to the business type's emphasis. */
+  dashboard?: WidgetId[];
+  /** Inbound channel identities. A WhatsApp webhook is routed by the business number it was sent to. */
+  channels?: { whatsappPhoneNumberId?: string };
+  createdAt: ISODate;
+};
 
 /* ------------------------------------------------------------------ */
 /* Places & routes                                                     */
@@ -28,7 +60,7 @@ export type Zone = "hub" | "family_island";
 export type ServiceLevel = "air" | "ocean";
 
 /** Everything location-specific lives here, not in components. */
-export type Destination = {
+export type Destination = TenantOwned & {
   id: DestinationId;
   name: string;
   zone: Zone;
@@ -43,7 +75,7 @@ export type Destination = {
 
 export type LocationKind = "us_warehouse" | "pickup_center" | "partner_agent";
 
-export type Location = {
+export type Location = TenantOwned & {
   id: ID;
   kind: LocationKind;
   name: string;
@@ -54,25 +86,115 @@ export type Location = {
   phone?: string;
 };
 
-/** A flight or sailing that carries shipments. */
-export type Voyage = {
+/**
+ * A TRIP — one flight or sailing that carries shipments. (Historically called
+ * Voyage; `Trip` is the same entity.) Trips generated from a schedule carry the
+ * route and vessel; ad-hoc trips may not.
+ */
+export type Voyage = TenantOwned & {
   id: ID;
   label: string;
   mode: ServiceLevel;
   destinationId: DestinationId;
   departsAt: ISODate;
   arrivesAt: ISODate;
-  status: "scheduled" | "departed" | "arrived";
+  status: "scheduled" | "departed" | "arrived" | "cancelled";
+  routeId?: ID;
+  vesselId?: ID;
+  scheduleId?: ID;
+  /** Overrides the vessel's capacity for this trip (lb). */
+  capacityLb?: number;
+};
+export type Trip = Voyage;
+
+/** An island is the existing Destination (service area + pickup config). */
+export type Island = Destination;
+
+/* ------------------------------------------------------------------ */
+/* Inter-island network                                                */
+/* ------------------------------------------------------------------ */
+
+export type Port = TenantOwned & {
+  id: ID;
+  /** Short code, e.g. NAS-PCD. */
+  code: string;
+  name: string;
+  kind: "seaport" | "dock" | "airport";
+  /** Island the port is on; unset for ports outside the network (e.g. Florida). */
+  destinationId?: DestinationId;
+};
+
+export type Route = TenantOwned & {
+  id: ID;
+  code: string;
+  name: string;
+  mode: ServiceLevel;
+  /** Ordered port calls: first = origin, last = final destination. */
+  portIds: ID[];
+  /** Island of the final port — what shipments and trips use. */
+  destinationId: DestinationId;
+  transitHours: number;
+  active: boolean;
+};
+
+export type VesselKind = "mailboat" | "cargo_vessel" | "ferry" | "barge" | "aircraft";
+
+export type Vessel = TenantOwned & {
+  id: ID;
+  name: string;
+  kind: VesselKind;
+  registration?: string;
+  /** Cargo capacity in pounds. */
+  capacityLb: number;
+  status: "active" | "maintenance" | "retired";
+};
+
+/** A recurring sailing pattern. Trips are generated from it. */
+export type Schedule = TenantOwned & {
+  id: ID;
+  routeId: ID;
+  vesselId: ID;
+  /** 0 = Sunday … 6 = Saturday. */
+  daysOfWeek: number[];
+  /** Local departure time, "HH:MM". */
+  departureTime: string;
+  active: boolean;
+};
+
+export type BookingStatus = "requested" | "confirmed" | "checked_in" | "cancelled";
+
+/** A customer reserves space on a trip. Check-in turns it into a real shipment. */
+export type Booking = TenantOwned & {
+  id: ID;
+  customerId: ID;
+  tripId: ID;
+  description: string;
+  pieces: number;
+  weightLb: number;
+  status: BookingStatus;
+  shipmentId?: ID;
+  createdAt: ISODate;
+  createdBy: "customer" | "staff";
+};
+
+/** Loading list for one trip. Lines are derived from shipments on the trip. */
+export type Manifest = TenantOwned & {
+  id: ID;
+  tripId: ID;
+  status: "open" | "closed";
+  closedBy?: string;
+  closedAt?: ISODate;
+  createdAt: ISODate;
 };
 
 /* ------------------------------------------------------------------ */
 /* People                                                              */
 /* ------------------------------------------------------------------ */
 
-export type Role = "customer" | "warehouse" | "customs" | "accounting" | "support" | "manager" | "admin";
+export type Role = "customer" | "warehouse" | "customs" | "accounting" | "support" | "dispatcher" | "driver" | "manager" | "admin" | "owner";
 export type StaffRole = Exclude<Role, "customer">;
 
-export type Customer = {
+export type Customer = TenantOwned & {
   id: ID;
   /** Personal box number printed on labels, e.g. TL10284. */
   accountNumber: string;
@@ -90,7 +212,7 @@ export type Customer = {
   createdAt: ISODate;
 };
 
-export type StaffUser = { id: ID; name: string; role: StaffRole; title: string };
+export type StaffUser = TenantOwned & { id: ID; name: string; role: StaffRole; title: string; email?: string; status?: "active" | "invited" };
 
 /* ------------------------------------------------------------------ */
 /* Packages                                                            */
@@ -113,8 +235,8 @@ export type PackageStorage = {
   collectedAt?: ISODate;
 };
 
-export type Package = {
-  /** The Link package ID — printed as a QR code, used everywhere. e.g. TL-PKG-10482 */
+export type Package = TenantOwned & {
+  /** Shipping OS package ID — printed as a QR code, used everywhere. e.g. TL-PKG-10482 */
   id: ID;
   /** Unset until the warehouse matches the label to a customer. */
   customerId?: ID;
@@ -172,7 +294,7 @@ export type CustomsRecord = {
   notes: string[];
 };
 
-export type Shipment = {
+export type Shipment = TenantOwned & {
   id: ID;
   customerId: ID;
   packageIds: ID[];
@@ -210,7 +332,7 @@ export type InvoiceField = "merchant" | "invoiceNumber" | "orderNumber" | "purch
 
 export type PurchaseInvoiceStatus = "processing" | "needs_review" | "matched" | "verified" | "rejected";
 
-export type PurchaseInvoice = {
+export type PurchaseInvoice = TenantOwned & {
   id: ID;
   merchant: string;
   invoiceNumber: string;
@@ -236,7 +358,7 @@ export type PurchaseInvoice = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Money — bills from The Link, payments, reconciliation               */
+/* Money — bills from Shipping OS, payments, reconciliation               */
 /* ------------------------------------------------------------------ */
 
 export type ChargeKind = "shipping" | "island_delivery" | "delivery" | "storage" | "procurement" | "handling" | "customs_duty" | "other";
@@ -247,11 +369,11 @@ export type BillLine = {
   description: string;
   amount: number;
   packageId?: ID;
-  /** VAT applies to The Link's services, not to duty collected for government. */
+  /** VAT applies to Shipping OS's services, not to duty collected for government. */
   taxable: boolean;
 };
 
-export type Bill = {
+export type Bill = TenantOwned & {
   /** e.g. INV-2026-00142 */
   id: ID;
   customerId: ID;
@@ -274,7 +396,7 @@ export type Bill = {
 
 export type PaymentMethod = "cash" | "card" | "bank_transfer" | "online";
 
-export type Payment = {
+export type Payment = TenantOwned & {
   id: ID;
   customerId: ID;
   /** Unset = unmatched payment waiting for accounting. */
@@ -314,7 +436,7 @@ export type ExceptionStatus = "open" | "assigned" | "in_progress" | "resolved" |
 
 export type Note = { at: ISODate; by: string; text: string };
 
-export type OpsException = {
+export type OpsException = TenantOwned & {
   id: ID;
   type: ExceptionType;
   severity: Severity;
@@ -343,7 +465,7 @@ export type DeliveryStatus = "not_scheduled" | "scheduled" | "out_for_delivery" 
 
 export type ProofOfDelivery = { receivedBy: string; at: ISODate; signature: string; photo: string; gps?: string };
 
-export type Delivery = {
+export type Delivery = TenantOwned & {
   id: ID;
   shipmentId: ID;
   customerId: ID;
@@ -362,7 +484,7 @@ export type Delivery = {
 export type ClaimReason = "damaged" | "missing_item" | "package_missing" | "billing" | "delivery" | "other";
 export type ClaimStatus = "submitted" | "under_review" | "waiting_for_customer" | "resolved" | "rejected";
 
-export type Claim = {
+export type Claim = TenantOwned & {
   id: ID;
   customerId: ID;
   packageId?: ID;
@@ -382,7 +504,7 @@ export type Channel = "web" | "whatsapp" | "phone" | "email";
 
 export type ChatMessage = { id: ID; author: "customer" | "assistant" | "staff"; text: string; at: ISODate; staffName?: string };
 
-export type SupportTicket = {
+export type SupportTicket = TenantOwned & {
   id: ID;
   customerId: ID;
   channel: Channel;
@@ -400,7 +522,7 @@ export type SupportTicket = {
 };
 
 /** Assistant / WhatsApp conversation log (one per customer per channel). */
-export type Conversation = {
+export type Conversation = TenantOwned & {
   id: ID;
   customerId: ID;
   channel: "web" | "whatsapp";
@@ -408,6 +530,8 @@ export type Conversation = {
   intents: string[];
   escalated: boolean;
   ticketId?: ID;
+  /** Channel memory between assistant turns. Lives in the tenant's conversation, never in a process-wide cache. */
+  agentContext?: Record<string, unknown>;
   updatedAt: ISODate;
 };
 
@@ -427,7 +551,7 @@ export type LandedCost = {
   delivery: number;
 };
 
-export type Procurement = {
+export type Procurement = TenantOwned & {
   id: ID;
   customerId: ID;
   request: string;
@@ -461,16 +585,42 @@ export type Refs = Partial<{
   ticketId: ID;
   deliveryId: ID;
   procurementId: ID;
+  tripId: ID;
+  bookingId: ID;
 }>;
 
 export type Actor = {
   kind: "customer" | "staff" | "ai" | "system";
   name: string;
   role: Role;
+  /** The organization the actor is signed in to. System jobs use PLATFORM_ORG. */
+  organizationId: ID;
   customerId?: ID;
+  /** Staff user ID (membership) when known. */
+  userId?: ID;
+  /** Set when an AI tool acts on this user's behalf (same permissions, audited as AI). */
+  via?: "ai";
 };
 
-export type AuditEvent = {
+/**
+ * A consequential write an AI tool prepared but did not perform. Only the same
+ * user, in the same organization, can confirm it; confirmation re-runs every
+ * authorization check and then calls the real service.
+ */
+export type AiProposal = TenantOwned & {
+  id: ID;
+  tool: string;
+  input: Record<string, unknown>;
+  preview: { title: string; lines: string[] };
+  proposedBy: { kind: Actor["kind"]; name: string; userId?: ID; customerId?: ID };
+  status: "pending" | "confirmed" | "cancelled" | "expired" | "failed";
+  createdAt: ISODate;
+  expiresAt: ISODate;
+  resolvedAt?: ISODate;
+  error?: string;
+};
+
+export type AuditEvent = TenantOwned & {
   id: ID;
   type: string;
   at: ISODate;
@@ -485,7 +635,7 @@ export type AuditEvent = {
 
 export type NotificationChannel = "in_app" | "whatsapp" | "email";
 
-export type Notification = {
+export type Notification = TenantOwned & {
   id: ID;
   audience: "customer" | "staff";
   customerId?: ID;
@@ -502,7 +652,7 @@ export type Notification = {
   refs: Refs;
 };
 
-export type Quote = {
+export type Quote = TenantOwned & {
   id: ID;
   customerId?: ID;
   destinationId: DestinationId;

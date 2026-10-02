@@ -5,8 +5,10 @@ import type { Actor, Package } from "@/domain/types";
 import { findPurchaseInvoice } from "./invoiceEngine";
 import { isOpen } from "./exceptions";
 import { dockScan } from "./packages";
+import { requireModule } from "./access";
 
 export function warehouseQueues() {
+  requireModule("warehouse");
   const s = db();
   const open = s.exceptions.filter(isOpen);
   const withEx = (p: Package) => open.filter((e) => e.packageId === p.id);
