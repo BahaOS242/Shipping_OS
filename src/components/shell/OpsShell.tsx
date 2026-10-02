@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLive } from "@/data/useLive";
 import { OPS_NAV, ROLE_INFO, canSeeOpsPath } from "@/domain/roles";
 import type { Role, Team } from "@/domain/types";
-import * as svc from "@/services";
+import * as svc from "@/services";\nimport { hasModule } from "@/services/tenant";
 import { Ago } from "../ui/Time";
 import { Logo } from "../ui/Logo";
 import { DemoBar } from "./DemoBar";
@@ -37,7 +37,7 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
 
   const role = live ? svc.getSession().role : undefined;
   const queues = live ? svc.workQueues() : undefined;
-  const nav = role ? OPS_NAV.filter((n) => n.roles.includes(role)) : [];
+  const nav = role ? OPS_NAV.filter((n) => n.roles.includes(role) && (!n.module || hasModule(n.module))) : [];
   const team = role ? TEAM_OF[role] : undefined;
   const notes = live && team ? svc.listNotifications({ team, limit: 12 }) : [];
   const unread = notes.filter((n) => !n.read).length;
