@@ -1,6 +1,10 @@
 /**
  * Roles & permissions. Authentication is mocked in the demo (a role switcher),
  * but every service checks permissions through `can()` so real auth can slot in.
+ *
+ * A permission says what a ROLE may do. Whether the ORGANIZATION has the feature
+ * at all is a separate question (module entitlement) — see services/access.ts,
+ * which checks membership → module → role → ownership in that order.
  */
 import type { Actor, Role } from "./types";
 
@@ -23,6 +27,11 @@ export type Permission =
   | "ticket.manage"
   | "delivery.manage"
   | "procurement.manage"
+  | "delivery.driver"
+  | "network.manage"
+  | "booking.manage"
+  | "manifest.manage"
+  | "org.manage"
   | "analytics.read"
   | "admin.search"
   | "demo.reset";
@@ -31,18 +40,25 @@ const STAFF_BASE: Permission[] = ["customer.read_any", "exception.manage", "admi
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   customer: ["customer.self"],
-  warehouse: [...STAFF_BASE, "package.receive", "package.edit", "package.hold", "shipment.create_any", "shipment.move", "delivery.manage", "invoice.review"],
+  warehouse: [...STAFF_BASE, "package.receive", "package.edit", "package.hold", "shipment.create_any", "shipment.move", "delivery.manage", "invoice.review", "manifest.manage"],
   customs: [...STAFF_BASE, "customs.review", "invoice.review", "package.hold"],
   accounting: [...STAFF_BASE, "billing.read_any", "billing.record_payment", "billing.reconcile", "billing.void", "invoice.review", "claim.manage"],
-  support: [...STAFF_BASE, "ticket.manage", "claim.manage", "billing.read_any", "package.hold"],
+  support: [...STAFF_BASE, "ticket.manage", "claim.manage", "billing.read_any", "package.hold", "booking.manage"],
+  dispatcher: [...STAFF_BASE, "shipment.create_any", "shipment.move", "delivery.manage", "delivery.driver", "booking.manage", "manifest.manage"],
+  /** Drivers work their own run: dispatch, deliver, record failed attempts. Nothing else. */
+  driver: ["delivery.driver"],
   manager: [
     ...STAFF_BASE,
     "package.receive", "package.edit", "package.hold", "shipment.create_any", "shipment.move", "customs.review", "invoice.review",
     "billing.read_any", "billing.record_payment", "billing.reconcile", "billing.void", "claim.manage", "ticket.manage",
-    "delivery.manage", "procurement.manage", "analytics.read",
+    "delivery.manage", "delivery.driver", "procurement.manage", "network.manage", "booking.manage", "manifest.manage", "analytics.read",
   ],
   admin: [] /* all — see can() */,
+  owner: [] /* all — see can() */,
 };
+
+/** Roles with every permission inside their organization. */
+export const SUPER_ROLES: Role[] = ["admin", "owner"];
 
 export class ForbiddenError extends Error {
   constructor(message = "You don't have permission to do that.") {
@@ -52,7 +68,7 @@ export class ForbiddenError extends Error {
 
 export function can(actor: Actor, permission: Permission, owner?: { customerId?: string }) {
   if (actor.kind === "ai") return false;
-  if (actor.role === "admin") return true;
+  if (SUPER_ROLES.includes(actor.role)) return true;
   if (permission === "customer.self") return actor.role === "customer" && !!owner && owner.customerId === actor.customerId;
   return ROLE_PERMISSIONS[actor.role].includes(permission);
 }
@@ -79,27 +95,22 @@ export const ROLE_INFO: Record<Role, { label: string; icon: string; home: string
   customs: { label: "Customs", icon: "📋", home: "/customs", blurb: "Review shipments" },
   accounting: { label: "Accounting", icon: "🧮", home: "/accounting", blurb: "Bills, payments" },
   support: { label: "Support", icon: "🎧", home: "/support", blurb: "Help customers" },
+  dispatcher: { label: "Dispatcher", icon: "🧭", home: "/admin", blurb: "Trips, bookings, deliveries" },
+  driver: { label: "Driver", icon: "🚚", home: "/driver", blurb: "Today's run" },
   manager: { label: "Manager", icon: "📊", home: "/admin", blurb: "Everything that needs attention" },
   admin: { label: "Admin", icon: "🛠️", home: "/admin", blurb: "Full access" },
+  owner: { label: "Owner", icon: "👑", home: "/admin", blurb: "Full access + organization settings" },
 };
 
-/** Which operations areas each role sees in navigation. */
-export const OPS_NAV: { href: string; label: string; icon: string; roles: Role[] }[] = [
-  { href: "/admin", label: "Overview", icon: "📊", roles: ["manager", "admin"] },
-  { href: "/warehouse", label: "Warehouse", icon: "🏭", roles: ["warehouse", "manager", "admin"] },
-  { href: "/exceptions", label: "Exceptions", icon: "⚠", roles: ["warehouse", "customs", "accounting", "support", "manager", "admin"] },
-  { href: "/customs", label: "Customs", icon: "📋", roles: ["customs", "manager", "admin"] },
-  { href: "/accounting", label: "Accounting", icon: "🧮", roles: ["accounting", "manager", "admin"] },
-  { href: "/delivery", label: "Delivery", icon: "🚚", roles: ["warehouse", "manager", "admin"] },
-  { href: "/claims", label: "Claims", icon: "🛟", roles: ["support", "warehouse", "accounting", "manager", "admin"] },
-  { href: "/support", label: "Support", icon: "🎧", roles: ["support", "manager", "admin"] },
-  { href: "/customers", label: "Customers", icon: "👥", roles: ["support", "accounting", "manager", "admin", "warehouse", "customs"] },
-  { href: "/procurement", label: "Procurement", icon: "🛒", roles: ["manager", "admin"] },
-  { href: "/analytics", label: "Analytics", icon: "📈", roles: ["manager", "admin"] },
+/** Roles an administrator can invite during onboarding, with the names businesses use. */
+export const INVITABLE_ROLES: { role: Exclude<Role, "customer">; label: string }[] = [
+  { role: "owner", label: "Owner" },
+  { role: "admin", label: "Admin" },
+  { role: "manager", label: "Manager" },
+  { role: "dispatcher", label: "Dispatcher" },
+  { role: "warehouse", label: "Warehouse Staff" },
+  { role: "driver", label: "Driver" },
+  { role: "accounting", label: "Accountant" },
+  { role: "support", label: "Customer Service" },
+  { role: "customs", label: "Customs" },
 ];
-
-export function canSeeOpsPath(role: Role, pathname: string) {
-  if (pathname.startsWith("/admin/search")) return role !== "customer"; // global search is for every staff role
-  const item = OPS_NAV.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
-  return !item || item.roles.includes(role);
-}

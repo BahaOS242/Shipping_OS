@@ -10,10 +10,11 @@
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
 import { FX_TO_USD, itemsFor } from "@/domain/receipts";
-import { assert, can, canActOn } from "@/domain/roles";
+import { can, canActOn } from "@/domain/roles";
 import type { Actor, ID, InvoiceField, InvoiceItem, PurchaseInvoice } from "@/domain/types";
 import { SYSTEM, emit } from "@/events/bus";
 import { BusinessError, byId, round2 } from "./_shared";
+import { authorize } from "./access";
 import { autoResolve, ensureException } from "./exceptions";
 
 export const AI_DISCLAIMER = "AI-generated suggestion. Human review required.";
@@ -59,7 +60,7 @@ export type UploadInput = {
 };
 
 /** Simulated extraction: returns what a vision model would, with per-field confidence. */
-function extract(input: UploadInput): Omit<PurchaseInvoice, "id" | "status" | "source" | "reviewNotes" | "customerId" | "packageId" | "shipmentId"> {
+function extract(input: UploadInput): Omit<PurchaseInvoice, "id" | "organizationId" | "status" | "source" | "reviewNotes" | "customerId" | "packageId" | "shipmentId"> {
   const h = hash(input.fileName + (input.orderNumber ?? ""));
   const pkg = input.packageId ? db().packages.find((p) => p.id === input.packageId) : undefined;
   const merchantGuess =
@@ -137,13 +138,14 @@ function matchPackage(inv: PurchaseInvoice, hint?: ID) {
 
 export function uploadInvoice(actor: Actor, input: UploadInput) {
   const customerId = actor.role === "customer" ? actor.customerId : input.customerId;
-  assert(customerId ? canActOn(actor, "invoice.review", { customerId }) : can(actor, "invoice.review"), "You can only upload receipts for your own account.");
+  authorize(actor, "customs", customerId ? canActOn(actor, "invoice.review", { customerId }) : can(actor, "invoice.review"), "You can only upload receipts for your own account.");
   if (!input.fileName.trim()) throw new BusinessError("Choose a file.");
   return mutate((s) => {
     const x = extract(input);
     const inv: PurchaseInvoice = {
       ...x,
       id: `PI-${nextSeq("pi", 3000)}`,
+      organizationId: s.organizationId,
       customerId,
       status: "processing",
       source: { fileName: input.fileName, fileType: input.fileType, uploadedBy: input.uploadedBy ?? (actor.role === "customer" ? "customer" : "staff"), uploadedAt: nowIso() },
@@ -188,7 +190,7 @@ export function autoMatchInvoiceForPackage(packageId: ID) {
 }
 
 export function verifyInvoice(actor: Actor, id: ID, note?: string) {
-  assert(can(actor, "invoice.review"), "Only staff can verify invoices.");
+  authorize(actor, "customs", can(actor, "invoice.review"), "Only staff can verify invoices.");
   return mutate(() => {
     const inv = getPurchaseInvoice(id);
     inv.status = "verified";
@@ -201,7 +203,7 @@ export function verifyInvoice(actor: Actor, id: ID, note?: string) {
 }
 
 export function correctInvoice(actor: Actor, id: ID, patch: { total?: number; merchant?: string; orderNumber?: string }) {
-  assert(can(actor, "invoice.review"));
+  authorize(actor, "customs", can(actor, "invoice.review"));
   return mutate(() => {
     const inv = getPurchaseInvoice(id);
     if (patch.merchant) inv.merchant = patch.merchant;
@@ -220,7 +222,7 @@ export function correctInvoice(actor: Actor, id: ID, patch: { total?: number; me
 }
 
 export function linkInvoiceToPackage(actor: Actor, id: ID, packageId: ID) {
-  assert(can(actor, "invoice.review"));
+  authorize(actor, "customs", can(actor, "invoice.review"));
   return mutate(() => {
     const inv = getPurchaseInvoice(id);
     const p = db().packages.find((x) => x.id === packageId);
@@ -235,7 +237,7 @@ export function linkInvoiceToPackage(actor: Actor, id: ID, packageId: ID) {
 }
 
 export function rejectInvoice(actor: Actor, id: ID, reason: string) {
-  assert(can(actor, "invoice.review"));
+  authorize(actor, "customs", can(actor, "invoice.review"));
   return mutate(() => {
     const inv = getPurchaseInvoice(id);
     inv.status = "rejected";

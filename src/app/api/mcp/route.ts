@@ -1,5 +1,5 @@
 import { TOOLS, runTool, toolManifest } from "@/ai/tools";
-import { demoCustomerId } from "../_demo";
+import { demoCustomerId, withApiTenant } from "../_demo";
 
 /**
  * MCP-ready JSON-RPC endpoint (DEMO). The app does not depend on MCP — this
@@ -14,6 +14,10 @@ export const GET = () => Response.json({ name: "the-link", mode: "demo", methods
 
 export async function POST(req: Request) {
   const rpc = (await req.json().catch(() => ({}))) as Rpc;
+  return withApiTenant(req, ["api"], () => handle(rpc));
+}
+
+function handle(rpc: Rpc): Response {
   switch (rpc.method) {
     case "initialize":
       return ok(rpc.id, { protocolVersion: "2025-06-18", serverInfo: { name: "the-link", version: "0.2.0-demo" }, capabilities: { tools: {} } });

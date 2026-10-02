@@ -6,10 +6,11 @@
 import { DAY, now, nowIso } from "@/data/clock";
 import { db, mutate } from "@/data/store";
 import { STORAGE_RULES, storageStatus } from "@/domain/storage";
-import { assert, can } from "@/domain/roles";
+import { can } from "@/domain/roles";
 import type { Actor, ID } from "@/domain/types";
 import { emit } from "@/events/bus";
 import { BusinessError } from "./_shared";
+import { authorize } from "./access";
 import { addCharge, listBills } from "./billing";
 import { autoResolve, ensureException, raiseException } from "./exceptions";
 import { getPackage, holdPackage } from "./packages";
@@ -24,7 +25,7 @@ export function storageQueue() {
 }
 
 export function notifyStorage(actor: Actor, packageId: ID) {
-  assert(can(actor, "package.hold") || can(actor, "ticket.manage"));
+  authorize(actor, "warehouse", can(actor, "package.hold") || can(actor, "ticket.manage"));
   const p = getPackage(packageId);
   const st = storageStatus(p, now());
   return mutate(() =>
@@ -38,7 +39,7 @@ export function notifyStorage(actor: Actor, packageId: ID) {
 }
 
 export function applyStorageFee(actor: Actor, packageId: ID) {
-  assert(can(actor, "package.edit") || can(actor, "billing.record_payment"));
+  authorize(actor, ["warehouse", "billing"], can(actor, "package.edit") || can(actor, "billing.record_payment"));
   const p = getPackage(packageId);
   const st = storageStatus(p, now());
   if (!p.customerId) throw new BusinessError("Match a customer first.");
@@ -56,7 +57,7 @@ export const placeStorageHold = (actor: Actor, packageId: ID, reason: string) =>
 
 /** Customer collected in Florida (or it was otherwise released from storage). */
 export function markCollected(actor: Actor, packageId: ID, note: string) {
-  assert(can(actor, "package.edit"));
+  authorize(actor, "warehouse", can(actor, "package.edit"));
   const p = getPackage(packageId);
   if (p.shipmentId) throw new BusinessError("This package is in a shipment.");
   return mutate(() => {
@@ -69,7 +70,7 @@ export function markCollected(actor: Actor, packageId: ID, note: string) {
 }
 
 export function escalateStorage(actor: Actor, packageId: ID) {
-  assert(can(actor, "package.hold"));
+  authorize(actor, "warehouse", can(actor, "package.hold"));
   const p = getPackage(packageId);
   return raiseException(actor, { type: "STORAGE_OVERDUE", severity: "high", team: "management", title: "Storage escalated — possible abandonment", customerId: p.customerId, packageId: p.id, detail: `Waiting ${storageStatus(p, now()).daysWaiting} days.` });
 }

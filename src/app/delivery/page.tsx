@@ -28,7 +28,7 @@ export default function DeliveryPage() {
   const [fail, setFail] = useState<Delivery | null>(null);
   const [proof, setProof] = useState<Delivery | null>(null);
   const [now] = useState(() => Date.now());
-  const [form, setForm] = useState(() => ({ date: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10), from: "10:00", to: "13:00", driver: svc.DRIVERS[0], route: "Route A" }));
+  const [form, setForm] = useState(() => ({ date: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10), from: "10:00", to: "13:00", driver: svc.listDrivers()[0], route: "Route A" }));
   const [who, setWho] = useState("");
   const [reason, setReason] = useState("Nobody home");
   const all = svc.listDeliveries();
@@ -47,7 +47,7 @@ export default function DeliveryPage() {
         {d.fee > 0 && <p className="text-ink-soft">💵 Fee {fmtUsd(d.fee)}</p>}
         {d.notes.at(-1) && <p className="text-coral-700">📝 {d.notes.at(-1)!.text}</p>}
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {d.method === "home_delivery" && ["not_scheduled", "failed", "scheduled", "rescheduled"].includes(d.status) && <Btn tone="light" onClick={() => { setSched(d); setForm({ ...form, driver: d.driver ?? svc.DRIVERS[0] }); }}>{d.status === "not_scheduled" ? "Schedule" : "Reschedule"}</Btn>}
+          {d.method === "home_delivery" && ["not_scheduled", "failed", "scheduled", "rescheduled"].includes(d.status) && <Btn tone="light" onClick={() => { setSched(d); setForm({ ...form, driver: d.driver ?? svc.listDrivers()[0] }); }}>{d.status === "not_scheduled" ? "Schedule" : "Reschedule"}</Btn>}
           {["scheduled", "rescheduled"].includes(d.status) && d.method === "home_delivery" && <Btn tone="sea" onClick={() => run(() => svc.dispatchDelivery(actor, d.id), "Out for delivery — customer notified.")}>Dispatch</Btn>}
           {(d.status === "out_for_delivery" || (d.method === "pickup" && d.status === "scheduled")) && <Btn tone="sea" onClick={() => { setDone(d); setWho(svc.customerName(svc.findCustomer(d.customerId))); }}>{d.method === "pickup" ? "Collected" : "Delivered"}</Btn>}
           {d.status === "out_for_delivery" && <Btn tone="danger" onClick={() => setFail(d)}>Failed</Btn>}
@@ -109,7 +109,7 @@ export default function DeliveryPage() {
               <Field label="From"><Input type="time" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} /></Field>
               <Field label="To"><Input type="time" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} /></Field>
             </div>
-            <Field label="Driver"><Select value={form.driver} onChange={(e) => setForm({ ...form, driver: e.target.value })}>{svc.DRIVERS.map((d) => <option key={d}>{d}</option>)}</Select></Field>
+            <Field label="Driver"><Select value={form.driver} onChange={(e) => setForm({ ...form, driver: e.target.value })}>{svc.listDrivers().map((d) => <option key={d}>{d}</option>)}</Select></Field>
             <Field label="Route"><Input value={form.route} onChange={(e) => setForm({ ...form, route: e.target.value })} /></Field>
             <Btn type="submit" tone="dark">Save</Btn>
           </form>

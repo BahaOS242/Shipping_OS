@@ -1,4 +1,4 @@
 import { toolManifest } from "@/ai/tools";
-import "../_demo";
+import { withApiTenant } from "../_demo";
 
-export const GET = () => Response.json({ mode: "demo", tools: toolManifest() });
+export const GET = (req: Request) => withApiTenant(req, ["api"], (org) => Response.json({ mode: "demo", organization: org.slug, tools: toolManifest() }));

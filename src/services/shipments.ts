@@ -9,15 +9,16 @@
  */
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
-import { assert, can, canActOn } from "@/domain/roles";
+import { can, canActOn } from "@/domain/roles";
 import type { Actor, CustomsStatus, ID, Package, ServiceLevel, Shipment } from "@/domain/types";
 import { SYSTEM, emit } from "@/events/bus";
 import { BusinessError, byId, customerName, round2 } from "./_shared";
+import { authorize, isModuleEnabled, requireModule } from "./access";
 import { billShipment } from "./billing";
 import { getCustomer } from "./customers";
 import { autoResolve, isOpen, onExceptionResolved, raiseException } from "./exceptions";
 import { declaredValueUsd, findPurchaseInvoice, onInvoiceLinked } from "./invoiceEngine";
-import { getDestination, getLocation, nextVoyage, warehouse } from "./locations";
+import { getDestination, getLocation, getVoyage, nextVoyage, warehouse } from "./locations";
 
 export const CUSTOMS_DISCLAIMER = "Demo customs workflow — final clearance decisions remain with authorized personnel.";
 
@@ -51,7 +52,7 @@ function refreshCustoms(sh: Shipment) {
 
 /** "Put these together" — customer or staff. Creates a real Shipment linked to its packages. */
 export function createShipment(actor: Actor, input: { customerId: ID; packageIds: ID[]; service?: ServiceLevel; deliveryMethod?: Shipment["deliveryMethod"] }) {
-  assert(canActOn(actor, "shipment.create_any", { customerId: input.customerId }), "You can only ship your own packages.");
+  authorize(actor, "shipments", canActOn(actor, "shipment.create_any", { customerId: input.customerId }), "You can only ship your own packages.");
   const c = getCustomer(input.customerId);
   if (!input.packageIds.length) throw new BusinessError("Pick at least one package.");
   const pkgs = input.packageIds.map((id) => db().packages.find((p) => p.id === id));
@@ -71,12 +72,14 @@ export function createShipment(actor: Actor, input: { customerId: ID; packageIds
   return mutate((s) => {
     const sh: Shipment = {
       id: `TL-SHP-${nextSeq("shp", 2030)}`,
+      organizationId: s.organizationId,
       customerId: c.id,
       packageIds: list.map((p) => p.id),
       destinationId,
       service,
       deliveryMethod: input.deliveryMethod ?? c.deliveryPreference,
-      status: "awaiting_customs",
+      // Organizations without the Customs module (domestic inter-island, couriers) skip review.
+      status: isModuleEnabled("customs") ? "awaiting_customs" : "cleared",
       customs: { status: "missing_documents", flags: [], notes: [] },
       createdAt: nowIso(),
       createdBy: actor.role === "customer" ? "customer" : "staff",
@@ -94,10 +97,15 @@ export function createShipment(actor: Actor, input: { customerId: ID; packageIds
       emit("PACKAGE_CONSOLIDATED", { actor, refs, summary: `${list.length} packages put together: ${list.map((p) => p.id).join(", ")}`, customerSummary: `We'll combine your ${list.length} packages into one shipment.`, data: { packageIds: sh.packageIds } });
     }
     emit("SHIPMENT_CREATED", { actor, refs, summary: `Shipment ${sh.id} created (${service}, ${getDestination(destinationId).name}, ${sh.deliveryMethod.replace("_", " ")})`, customerSummary: `Shipment ${sh.id} created. We're getting it ready.` });
-    refreshCustoms(sh);
-    sh.customs.packetGeneratedAt = nowIso();
-    emit("CUSTOMS_PACKET_GENERATED", { actor: SYSTEM, refs, summary: `Customs packet generated — ${CUSTOMS_COPY_STATUS[sh.customs.status]}` });
-    billShipment(SYSTEM, sh.id);
+    if (isModuleEnabled("customs")) {
+      refreshCustoms(sh);
+      sh.customs.packetGeneratedAt = nowIso();
+      emit("CUSTOMS_PACKET_GENERATED", { actor: SYSTEM, refs, summary: `Customs packet generated — ${CUSTOMS_COPY_STATUS[sh.customs.status]}` });
+    } else {
+      sh.customs.status = "approved";
+      sh.customs.notes.push("No customs review (module not enabled).");
+    }
+    if (isModuleEnabled("billing")) billShipment(SYSTEM, sh.id);
     return sh;
   });
 }
@@ -112,6 +120,7 @@ const CUSTOMS_COPY_STATUS: Record<CustomsStatus, string> = {
 /* ---------------- Customs ---------------- */
 
 export function customsPacket(shipmentId: ID) {
+  requireModule("customs");
   const sh = getShipment(shipmentId);
   const c = getCustomer(sh.customerId);
   const pkgs = shipmentPackages(sh);
@@ -149,6 +158,7 @@ export function customsPacket(shipmentId: ID) {
 }
 
 export function customsQueue(status?: CustomsStatus) {
+  requireModule("customs");
   return db()
     .shipments.filter((s) => ["awaiting_customs", "cleared"].includes(s.status))
     .filter((s) => !status || s.customs.status === status)
@@ -156,7 +166,7 @@ export function customsQueue(status?: CustomsStatus) {
 }
 
 function customsAction(actor: Actor, id: ID, fn: (sh: Shipment) => void) {
-  assert(can(actor, "customs.review"), "Only the customs team can do that.");
+  authorize(actor, "customs", can(actor, "customs.review"), "Only the customs team can do that.");
   return mutate(() => {
     const sh = getShipment(id);
     if (!["awaiting_customs", "cleared"].includes(sh.status)) throw new BusinessError("This shipment is past customs review.");
@@ -220,11 +230,13 @@ onInvoiceLinked((inv) => {
 /* ---------------- Movement ---------------- */
 
 export function departShipment(actor: Actor, id: ID) {
-  assert(can(actor, "shipment.move"), "Only warehouse or managers can send shipments.");
+  authorize(actor, "shipments", can(actor, "shipment.move"), "Only warehouse or managers can send shipments.");
   return mutate(() => {
     const sh = getShipment(id);
     if (sh.status !== "cleared") throw new BusinessError(sh.customs.status === "approved" ? "Already departed." : "Customs review must be approved first.");
-    const v = nextVoyage(sh.destinationId, sh.service);
+    // A trip planned in advance (load planning / booking) wins; else the next one with room.
+    const weight = shipmentPackages(sh).reduce((a, p) => a + (p.actualWeight ?? 0), 0);
+    const v = getVoyage(sh.voyageId) ?? nextVoyage(sh.destinationId, sh.service, weight);
     if (v) {
       sh.voyageId = v.id;
       v.status = "departed";
@@ -247,7 +259,7 @@ const arrivalHooks: ArrivalHook[] = [];
 export const onShipmentArrived = (h: ArrivalHook) => arrivalHooks.push(h);
 
 export function arriveShipment(actor: Actor, id: ID) {
-  assert(can(actor, "shipment.move"));
+  authorize(actor, "shipments", can(actor, "shipment.move"));
   return mutate((s) => {
     const sh = getShipment(id);
     if (sh.status !== "departed") throw new BusinessError("Only departed shipments can arrive.");

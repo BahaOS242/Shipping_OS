@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useLive } from "@/data/useLive";
-import { OPS_NAV, ROLE_INFO, canSeeOpsPath } from "@/domain/roles";
+import { ROLE_INFO } from "@/domain/roles";
+import { MODULES } from "@/platform/modules";
+import { opsNavFor, opsPathAccess } from "@/platform/navigation";
 import type { Role, Team } from "@/domain/types";
 import * as svc from "@/services";
 import { Ago } from "../ui/Time";
@@ -19,7 +21,7 @@ const QUEUE_FOR: Record<string, keyof ReturnType<typeof svc.workQueues>> = {
   "/delivery": "delivery",
 };
 
-const TEAM_OF: Partial<Record<Role, Team | "all">> = { warehouse: "warehouse", customs: "customs", accounting: "accounting", support: "support", manager: "all", admin: "all" };
+const TEAM_OF: Partial<Record<Role, Team | "all">> = { warehouse: "warehouse", customs: "customs", accounting: "accounting", support: "support", dispatcher: "delivery", driver: "delivery", manager: "all", admin: "all", owner: "all" };
 
 export function OpsShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -37,7 +39,10 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
 
   const role = live ? svc.getSession().role : undefined;
   const queues = live ? svc.workQueues() : undefined;
-  const nav = role ? OPS_NAV.filter((n) => n.roles.includes(role)) : [];
+  const org = live ? svc.currentOrganization() : undefined;
+  // Navigation = role ∩ organization modules. The services enforce the same rules again.
+  const nav = role && org ? opsNavFor(role, org.modules) : [];
+  const access = role && org ? opsPathAccess(role, pathname, org.modules) : undefined;
   const team = role ? TEAM_OF[role] : undefined;
   const notes = live && team ? svc.listNotifications({ team, limit: 12 }) : [];
   const unread = notes.filter((n) => !n.read).length;
@@ -65,7 +70,7 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-[#e3e7ec] bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
           <button className="grid h-11 w-11 place-items-center rounded-xl text-xl ring-1 ring-[#e3e7ec] lg:hidden" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu}>☰</button>
-          <div className="hidden sm:block"><Logo href={role ? ROLE_INFO[role].home : "/admin"} suffix="Operations" /></div>
+          <div className="hidden sm:block"><Logo href={role ? ROLE_INFO[role].home : "/admin"} suffix={org?.name ?? "Operations"} /></div>
           <form
             role="search"
             className="ml-auto flex max-w-md flex-1 items-center"
@@ -106,6 +111,12 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="mx-auto flex max-w-[1400px]">
         <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-[#e3e7ec] px-3 py-5 lg:block">
+          {org && (
+            <p className="mb-1 flex items-center gap-2 px-3 text-sm font-extrabold">
+              <span aria-hidden className="h-3 w-3 rounded-full" style={{ background: org.branding.primaryColor }} />
+              {org.name}
+            </p>
+          )}
           {role && <p className="mb-3 px-3 text-xs font-bold uppercase tracking-wider text-ink-mute">{ROLE_INFO[role].icon} {ROLE_INFO[role].label}</p>}
           {nav_}
           <Link href="/" className="mt-6 block rounded-xl px-3 py-2 text-sm font-semibold text-sea-700 hover:bg-white">↗ Customer website</Link>
@@ -123,13 +134,26 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
         <main id="main" className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {!live ? null : role === "customer" ? (
             <AccessNote title="This is Shipping OS's staff area" body="In the demo, switch to a staff role to see how the team works." roles={["manager", "warehouse", "customs", "accounting", "support"]} />
-          ) : role && !canSeeOpsPath(role, pathname) ? (
-            <AccessNote title={`${ROLE_INFO[role].label} can't open this area`} body="Each team gets its own work queue. Switch role to see this screen." roles={OPS_NAV.find((n) => pathname.startsWith(n.href))?.roles.filter((r) => r !== "admin") ?? ["manager"]} />
+          ) : role && access && !access.ok && access.reason === "module" ? (
+            <ModuleNote title={`${access.item.label} isn't part of ${org?.name}'s setup`} missing={access.missing.map((m) => MODULES[m].label)} canConfigure={role === "owner" || role === "admin"} />
+          ) : role && access && !access.ok ? (
+            <AccessNote title={`${ROLE_INFO[role].label} can't open this area`} body="Each team gets its own work queue. Switch role to see this screen." roles={access.item.roles.filter((r) => r !== "admin" && r !== "owner" && svc.listMembers().some((u) => u.role === r)).slice(0, 4)} />
           ) : (
             children
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+function ModuleNote({ title, missing, canConfigure }: { title: string; missing: string[]; canConfigure: boolean }) {
+  return (
+    <div className="mx-auto max-w-lg rounded-3xl bg-white p-8 text-center ring-1 ring-[#e3e7ec]">
+      <p className="text-5xl" aria-hidden>🧩</p>
+      <h1 className="mt-3 text-2xl font-black">{title}</h1>
+      <p className="mt-2 text-ink-soft">This needs the {missing.join(" and ")} module{missing.length > 1 ? "s" : ""}, which your organization hasn&apos;t enabled.</p>
+      {canConfigure && <Link href="/settings?tab=modules" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-ink px-4 font-bold text-white">Manage modules</Link>}
     </div>
   );
 }

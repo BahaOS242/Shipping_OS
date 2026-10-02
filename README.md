@@ -18,14 +18,33 @@ npm install
 npm run dev              # http://localhost:3000
 npm run build && npm start
 npm run typecheck && npm run lint
-npm test                 # 30-step critical journey against the services (Node)
+npm test                 # 30-step critical journey + 32 platform tests (modules, tenancy, authorization)
 node tests/ui-journey.mjs   # same journey through the browser UI (needs Playwright + running server)
 ```
 
-Use the **“Viewing as”** switcher in the black DEMO MODE bar to become a customer
-(Trevor, or the Island Hardware Co. business account) or a staff role
-(Warehouse, Customs, Accounting, Support, Manager, Admin). **Reset demo data**
-is in the same menu.
+Use the **“Viewing as”** switcher in the black DEMO MODE bar to pick an
+**organization**, then become one of its customers or staff roles. **Reset demo data**
+and **Set up a new organization** are in the same menu.
+
+## One platform, many logistics businesses
+
+Shipping OS is multi-tenant. Each organization gets the modules, roles, branding
+and navigation it needs from **one codebase and one deployment**. See
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+| Demo organization | Type | What it shows |
+|---|---|---|
+| Shipping OS Bahamas | Freight Forwarder (+ buy-for-me, AI, API) | The original demo, unchanged |
+| ABC Freight | Freight Forwarder | Same features, separate data; no vessels, capacity or driver portal |
+| Island Express | Mailboat operator | Trips, bookings, capacity, manifests, vessels, routes, schedules |
+| Swift Courier | Courier | Today's deliveries, drivers, dispatch, driver portal with proof of delivery |
+
+- **Modules** (`src/platform/modules.ts`): stable IDs with dependencies. Enabling Capacity turns on Vessels and Routes.
+- **Presets** (`src/platform/businessTypes.ts`): onboarding starting points, editable afterwards.
+- **Tenant isolation** happens in the store and services. `db()` only returns the active organization's data,
+  and `authorize()` checks membership → module → role → ownership on every operation.
+- **Navigation, route guards and the dashboard** come from role + enabled modules.
+- **Onboarding** at `/onboarding`. Organization settings (profile, modules, members, CSV import) at `/settings`.
 
 ## Architecture
 
@@ -84,13 +103,18 @@ therefore consistent by construction.
 (receipts) · `/payments` · `/claims` · `/claims/new` · `/support` · `/profile` ·
 `/notifications` · `/ship` · `/buy-for-me` · `/assistant` · `/whatsapp-demo`
 
+**Network & platform:** `/trips` · `/bookings` · `/capacity` · `/manifest` · `/vessels` · `/routes` ·
+`/schedules` · `/driver` · `/settings` · `/onboarding` · customer booking portal `/book`
+
 **Operations:** `/admin` · `/admin/search` · `/warehouse` · `/warehouse/scan` ·
 `/warehouse/packages/[id]` · `/exceptions` · `/customs` · `/customs/[id]` · `/accounting` ·
 `/accounting/bills/[id]` · `/accounting/invoices/[id]` · `/delivery` · `/claims` & `/support`
 (staff queue when viewing as staff) · `/customers` · `/customers/[id]` · `/procurement` · `/analytics`
 
 **API:** `POST /api/agent` · `GET/POST /api/channels/whatsapp/webhook` · `GET /api/tools` ·
-`POST /api/tools/:name` · `POST /api/mcp` (JSON-RPC: initialize, tools/list, tools/call)
+`POST /api/tools/:name` · `POST /api/mcp` (JSON-RPC: initialize, tools/list, tools/call).
+Send `X-Organization: <slug>` (or `?org=<slug>`) to pick the organization. Routes return 403 when the
+organization doesn't have the module (`api` / `assistant`).
 
 ## Demo script (≈10 minutes)
 
@@ -108,7 +132,7 @@ therefore consistent by construction.
 ## Safety rules the code enforces
 
 - The AI calls **controlled tools only**. The tools call services with an AI actor scoped to one customer. The AI cannot pay, refund, approve customs, reconcile, hold packages or message other customers; its only write powers are opening help requests and saving quotes (`AI_WRITE_PERMISSIONS`).
-- Every mutating service checks permissions (`can` / `canActOn`), for example: only customs approves, only accounting accepts payment differences, customers only touch their own records.
+- Every mutating service goes through `authorize()`: organization membership, module entitlement, then role permission (`can` / `canActOn`). For example, only customs approves, only accounting accepts payment differences, customers only touch their own records, and a user from one organization can never read or change another organization's records.
 - Customs is labelled *Demo customs workflow — final clearance decisions remain with authorized personnel*. AI item flags say *AI-generated suggestion. Human review required.*
 
 ## Before production (MVP)

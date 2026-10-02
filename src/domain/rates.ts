@@ -86,7 +86,7 @@ export type ShippingEstimate = {
  */
 export function calculateShippingCost(
   input: { weights: BillableWeight[] } | { billableWeight: number },
-  destination: Destination,
+  destination: Omit<Destination, "organizationId">,
   service: ServiceLevel,
 ): ShippingEstimate {
   const rule = RATE_CARD[service];
@@ -119,7 +119,7 @@ export function calculateShippingCost(
 /** Convenience for the calculator: raw inputs → estimate. */
 export function calculateShipping(
   args: { actualWeight: number; length?: number; width?: number; height?: number },
-  destination: Destination,
+  destination: Omit<Destination, "organizationId">,
   service: ServiceLevel,
 ) {
   const bw = calculateBillableWeight(args, service);

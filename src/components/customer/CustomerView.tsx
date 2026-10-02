@@ -12,7 +12,8 @@ export function CustomerView({ title, children }: { title: string; children: (me
       <Live>
         {() => {
           const s = svc.getSession();
-          const me = svc.getCustomer(s.customerId);
+          const me = svc.findCustomer(s.customerId);
+          if (!me) return <p className="rounded-2xl bg-white p-6 text-ink-soft ring-1 ring-sand-200">{svc.currentOrganization().name} has no customer accounts yet. Add one under Customers, or switch customer in the demo bar.</p>;
           return (
             <>
               {s.role !== "customer" && (

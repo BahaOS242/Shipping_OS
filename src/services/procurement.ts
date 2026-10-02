@@ -6,10 +6,11 @@
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
 import { customerPrice, landedCostTotal } from "@/domain/billing";
-import { assert, can, canActOn } from "@/domain/roles";
+import { can, canActOn } from "@/domain/roles";
 import type { Actor, ID, LandedCost, Procurement } from "@/domain/types";
 import { SYSTEM, emit } from "@/events/bus";
 import { BusinessError, byId } from "./_shared";
+import { authorize } from "./access";
 import { addCharge } from "./billing";
 import { uploadInvoice } from "./invoiceEngine";
 import { preAlert } from "./packages";
@@ -24,10 +25,10 @@ export function procurementPricing(p: Procurement) {
 }
 
 export function requestProcurement(actor: Actor, customerId: ID, request: string, quantity = 1) {
-  assert(canActOn(actor, "procurement.manage", { customerId }));
+  authorize(actor, "procurement", canActOn(actor, "procurement.manage", { customerId }));
   if (request.trim().length < 4) throw new BusinessError("Tell us what you need.");
   return mutate((s) => {
-    const p: Procurement = { id: `PRC-${nextSeq("prc", 900)}`, customerId, request: request.trim(), status: "requested", quantity, marginRate: 0.12, createdAt: nowIso(), notes: [] };
+    const p: Procurement = { id: `PRC-${nextSeq("prc", 900)}`, organizationId: s.organizationId, customerId, request: request.trim(), status: "requested", quantity, marginRate: 0.12, createdAt: nowIso(), notes: [] };
     s.procurements.push(p);
     emit("PROCUREMENT_REQUESTED", { actor, refs: { customerId, procurementId: p.id }, summary: `Buy-for-me request: ${p.request}`, customerSummary: `We got your request: “${p.request}”. We'll find it and send you a price.` });
     return p;
@@ -44,7 +45,7 @@ function update(actor: Actor, id: ID, fn: (p: Procurement) => void, summary: str
 }
 
 export function quoteProcurement(actor: Actor, id: ID, input: { supplier: string; product: string; costs: LandedCost; marginRate?: number }) {
-  assert(can(actor, "procurement.manage"));
+  authorize(actor, "procurement", can(actor, "procurement.manage"));
   return update(actor, id, (p) => {
     if (p.status !== "requested" && p.status !== "quoted") throw new BusinessError("Already approved.");
     Object.assign(p, { supplier: input.supplier, product: input.product, costs: input.costs, marginRate: input.marginRate ?? p.marginRate, status: "quoted" });
@@ -53,7 +54,7 @@ export function quoteProcurement(actor: Actor, id: ID, input: { supplier: string
 
 export function approveProcurement(actor: Actor, id: ID) {
   const p = getProcurement(id);
-  assert(canActOn(actor, "procurement.manage", p));
+  authorize(actor, "procurement", canActOn(actor, "procurement.manage", p));
   if (p.status !== "quoted" || !p.costs) throw new BusinessError("There's no price to approve yet.");
   return mutate(() => {
     const price = customerPrice(p.costs!, p.marginRate);
@@ -66,7 +67,7 @@ export function approveProcurement(actor: Actor, id: ID) {
 }
 
 export function markPurchased(actor: Actor, id: ID) {
-  assert(can(actor, "procurement.manage"));
+  authorize(actor, "procurement", can(actor, "procurement.manage"));
   const p = getProcurement(id);
   if (p.status !== "approved") throw new BusinessError("Customer must approve first.");
   return mutate(() => {

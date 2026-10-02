@@ -4,6 +4,7 @@ import { db, mutate, nextSeq } from "@/data/store";
 import { calculateShipping } from "@/domain/rates";
 import type { Actor, DestinationId, Quote, ServiceLevel } from "@/domain/types";
 import { BusinessError } from "./_shared";
+import { authorize } from "./access";
 import { getDestination } from "./locations";
 
 export function estimate(input: { destinationId: DestinationId; service: ServiceLevel; actualWeight: number; length?: number; width?: number; height?: number }) {
@@ -12,9 +13,10 @@ export function estimate(input: { destinationId: DestinationId; service: Service
 }
 
 export function createQuote(actor: Actor, input: Parameters<typeof estimate>[0]) {
+  authorize(actor, "quotes", true);
   const e = estimate(input);
   return mutate((s) => {
-    const q: Quote = { id: `Q-${nextSeq("q", 500)}`, customerId: actor.customerId, destinationId: input.destinationId, service: input.service, actualWeight: input.actualWeight, billableWeight: e.billableWeight, total: e.total, createdAt: nowIso() };
+    const q: Quote = { id: `Q-${nextSeq("q", 500)}`, organizationId: s.organizationId, customerId: actor.customerId, destinationId: input.destinationId, service: input.service, actualWeight: input.actualWeight, billableWeight: e.billableWeight, total: e.total, createdAt: nowIso() };
     s.quotes.push(q);
     return { quote: q, estimate: e };
   });

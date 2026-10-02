@@ -58,6 +58,7 @@ onEvent((e) => {
   if (cRule && e.refs.customerId && e.customerSummary) {
     const n: Notification = {
       id: `NTF-${nextSeq("ntf", 0)}`,
+      organizationId: s.organizationId,
       audience: "customer",
       customerId: e.refs.customerId,
       icon: cRule.icon,
@@ -75,7 +76,7 @@ onEvent((e) => {
       // Simulated WhatsApp template message in the customer's thread.
       let conv = s.conversations.find((c) => c.customerId === e.refs.customerId && c.channel === "whatsapp");
       if (!conv) {
-        conv = { id: `CONV-${nextSeq("conv", 0)}`, customerId: e.refs.customerId, channel: "whatsapp", messages: [], intents: [], escalated: false, updatedAt: e.at };
+        conv = { id: `CONV-${nextSeq("conv", 0)}`, organizationId: s.organizationId, customerId: e.refs.customerId, channel: "whatsapp", messages: [], intents: [], escalated: false, updatedAt: e.at };
         s.conversations.push(conv);
       }
       conv.messages.push({ id: `M${nextSeq("msg", 0)}`, author: "assistant", text: `${cRule.icon} ${e.customerSummary}`, at: e.at });
@@ -84,7 +85,7 @@ onEvent((e) => {
   }
   const sRule = STAFF_RULES[e.type]?.(e);
   if (sRule) {
-    s.notifications.push({ id: `NTF-${nextSeq("ntf", 0)}`, audience: "staff", team: sRule.team, icon: sRule.icon, title: sRule.title, body: e.summary, href: sRule.href, at: e.at, read: false, channels: ["in_app"], eventId: e.id, refs: e.refs });
+    s.notifications.push({ id: `NTF-${nextSeq("ntf", 0)}`, organizationId: s.organizationId, audience: "staff", team: sRule.team, icon: sRule.icon, title: sRule.title, body: e.summary, href: sRule.href, at: e.at, read: false, channels: ["in_app"], eventId: e.id, refs: e.refs });
   }
 });
 

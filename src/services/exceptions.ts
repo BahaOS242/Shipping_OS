@@ -5,10 +5,11 @@
 import { nowIso } from "@/data/clock";
 import { db, mutate, nextSeq } from "@/data/store";
 import { EXCEPTION_CATALOG, SEVERITY_COPY } from "@/domain/copy";
-import { assert, can } from "@/domain/roles";
+import { can } from "@/domain/roles";
 import type { Actor, ExceptionStatus, ExceptionType, ID, OpsException, Severity, Team } from "@/domain/types";
 import { SYSTEM, emit } from "@/events/bus";
 import { BusinessError, byId } from "./_shared";
+import { authorize } from "./access";
 
 type Links = Pick<OpsException, "customerId" | "packageId" | "shipmentId" | "billId" | "purchaseInvoiceId">;
 
@@ -20,6 +21,7 @@ export function raiseException(
     const cat = EXCEPTION_CATALOG[input.type];
     const ex: OpsException = {
       id: `EX-${nextSeq("ex", 1000)}`,
+      organizationId: s.organizationId,
       type: input.type,
       severity: input.severity ?? cat.severity,
       title: input.title ?? cat.label,
@@ -85,7 +87,7 @@ export function listExceptions(f: ExceptionFilter = {}) {
 export const getException = (id: ID) => byId(db().exceptions, id, "Exception");
 
 function update(actor: Actor, id: ID, fn: (e: OpsException) => void, summary: string, type: "EXCEPTION_UPDATED" | "EXCEPTION_RESOLVED" = "EXCEPTION_UPDATED") {
-  assert(can(actor, "exception.manage") || actor.kind === "system", "Only staff can work on exceptions.");
+  authorize(actor, null, can(actor, "exception.manage") || actor.kind === "system", "Only staff can work on exceptions.");
   return mutate(() => {
     const e = getException(id);
     fn(e);

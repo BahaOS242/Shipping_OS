@@ -1,14 +1,51 @@
 /** CUSTOMER SERVICE — profiles, shopping address, Customer 360 stats. */
-import { db } from "@/data/store";
+import { nowIso } from "@/data/clock";
+import { db, mutate, nextSeq } from "@/data/store";
 import { balanceOf } from "@/domain/billing";
-import type { Customer, ID } from "@/domain/types";
-import { byId, customerName, round2 } from "./_shared";
+import { can } from "@/domain/roles";
+import type { Actor, Customer, DestinationId, ID } from "@/domain/types";
+import { emit } from "@/events/bus";
+import { BusinessError, byId, customerName, round2 } from "./_shared";
+import { authorize, currentOrganization } from "./access";
 import { isOpen } from "./exceptions";
 import { warehouse } from "./locations";
 
 export const listCustomers = () => db().customers;
 export const getCustomer = (id: ID): Customer => byId(db().customers, id, "Customer");
 export const findCustomer = (id?: ID) => db().customers.find((c) => c.id === id);
+
+/** Staff add a customer account (also used by CSV import). */
+export function createCustomer(actor: Actor, input: { firstName: string; lastName: string; email?: string; phone?: string; homeDestination?: DestinationId; businessName?: string; deliveryAddress?: string }) {
+  authorize(actor, "customers", can(actor, "customer.read_any"), "Only staff can add customers.");
+  if (!input.firstName?.trim() || !input.lastName?.trim()) throw new BusinessError("First and last name are required.");
+  const dests = db().destinations;
+  const home = dests.find((d) => d.id === input.homeDestination) ?? dests[0];
+  if (!home) throw new BusinessError("Set up at least one island first.");
+  if (input.homeDestination && home.id !== input.homeDestination) throw new BusinessError(`Unknown island "${input.homeDestination}".`);
+  const prefix = currentOrganization().slug.replace(/[^a-z]/g, "").slice(0, 2).toUpperCase() || "CU";
+  return mutate((s) => {
+    const c: Customer = {
+      id: `cus_${nextSeq("cus", 1000)}`,
+      organizationId: s.organizationId,
+      accountNumber: `${prefix}${nextSeq("acct", 20000)}`,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      email: input.email?.trim() ?? "",
+      phone: input.phone?.trim() ?? "",
+      type: input.businessName ? "business" : "personal",
+      businessName: input.businessName?.trim() || undefined,
+      homeDestination: home.id,
+      deliveryAddress: input.deliveryAddress?.trim() || home.name,
+      preferredPickupLocationId: home.pickupLocationIds[0] ?? s.locations[0]?.id ?? "",
+      deliveryPreference: "pickup",
+      preferredService: home.services[0] ?? "ocean",
+      createdAt: nowIso(),
+    };
+    s.customers.push(c);
+    emit("CUSTOMER_CREATED", { actor, refs: { customerId: c.id }, summary: `Customer ${customerName(c)} (${c.accountNumber}) added` });
+    return c;
+  });
+}
 
 export function findCustomerByPhone(phone: string) {
   const d = phone.replace(/\D/g, "");

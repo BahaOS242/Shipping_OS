@@ -1,5 +1,5 @@
 import { handleWhatsAppWebhook, type WaWebhookPayload } from "@/ai/whatsapp";
-import "../../../_demo";
+import { withApiTenant } from "../../../_demo";
 
 /**
  * WhatsApp Business (Cloud API) webhook. Same handler the in-app WhatsApp demo uses.
@@ -16,5 +16,5 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const payload = (await req.json().catch(() => null)) as WaWebhookPayload | null;
   if (!payload?.entry) return Response.json({ error: "Invalid payload" }, { status: 400 });
-  return Response.json(await handleWhatsAppWebhook(payload));
+  return withApiTenant(req, ["assistant"], async () => Response.json(await handleWhatsAppWebhook(payload)));
 }

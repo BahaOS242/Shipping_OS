@@ -6,19 +6,24 @@
  * real services with a backdated clock, so invoices, shipments, bills,
  * payments, exceptions, notifications and timelines are always consistent.
  */
-import type { Customer, Package, Voyage } from "@/domain/types";
-import { destinations, locations, staff } from "./reference";
+import type { Customer, Organization, Package, Voyage } from "@/domain/types";
+import { BUSINESS_TYPES } from "@/platform/businessTypes";
+import { resolveModules } from "@/platform/modules";
+import { destinations, forOrg, locations, staff } from "./reference";
 import * as svc from "@/services/api";
 import { DAY, HOUR, atTime } from "./clock";
-import { SCHEMA_VERSION, registerSeeder, withState, type DbState } from "./store";
+import { seedOtherOrganizations } from "./seedOrgs";
+import { SCHEMA_VERSION, emptyTenant, registerSeeder, withState, withTenant, type PlatformState } from "./store";
+
+type Row<T> = Omit<T, "organizationId">;
 
 /* ------------------------------------------------------------------ */
 /* Reference data                                                      */
 /* ------------------------------------------------------------------ */
 
-function customers(T0: number): Customer[] {
+function customers(T0: number): Row<Customer>[] {
   const since = (days: number) => new Date(T0 - days * DAY).toISOString();
-  const c = (id: string, acct: string, first: string, last: string, phone: string, home: Customer["homeDestination"], pref: Customer["deliveryPreference"], svcPref: Customer["preferredService"], address: string, days: number, extra: Partial<Customer> = {}): Customer => ({
+  const c = (id: string, acct: string, first: string, last: string, phone: string, home: Customer["homeDestination"], pref: Customer["deliveryPreference"], svcPref: Customer["preferredService"], address: string, days: number, extra: Partial<Row<Customer>> = {}): Row<Customer> => ({
     id, accountNumber: acct, firstName: first, lastName: last, email: `${first.toLowerCase()}.${last.toLowerCase()}@example.com`, phone, type: "personal",
     homeDestination: home, deliveryAddress: address, preferredPickupLocationId: destinations.find((x) => x.id === home)!.pickupLocationIds[0],
     deliveryPreference: pref, preferredService: svcPref, createdAt: since(days), ...extra,
@@ -39,8 +44,8 @@ function customers(T0: number): Customer[] {
   ];
 }
 
-function voyages(T0: number): Voyage[] {
-  const out: Voyage[] = [];
+function voyages(T0: number): Row<Voyage>[] {
+  const out: Row<Voyage>[] = [];
   let n = 180;
   for (const dest of destinations) {
     for (const mode of ["air", "ocean"] as const) {
@@ -69,35 +74,42 @@ function voyages(T0: number): Voyage[] {
 /* History replay                                                      */
 /* ------------------------------------------------------------------ */
 
-function build(): DbState {
+/** The original Shipping OS business: a Bahamas freight forwarder with buy-for-me, AI and API. */
+function defaultOrganization(T0: number): Organization {
+  return {
+    id: svc.DEFAULT_ORG_ID,
+    slug: "shipping-os",
+    name: "Shipping OS Bahamas",
+    businessType: "freight_forwarder",
+    status: "active",
+    modules: resolveModules([...BUSINESS_TYPES.freight_forwarder.modules, "procurement", "assistant", "api"]),
+    branding: { primaryColor: "#0a7f8b", logoText: "Shipping OS", tagline: "From checkout to your doorstep." },
+    contact: { email: "hello@shippingos.example", phone: "(242) 555-0100", address: "10 Demo Harbour Road, Nassau" },
+    createdAt: new Date(T0 - 500 * DAY).toISOString(),
+  };
+}
+
+function build(): PlatformState {
   const T0 = Date.now();
-  const s: DbState = {
+  const org = defaultOrganization(T0);
+  const s = {
+    ...emptyTenant(org.id),
+    customers: forOrg(org.id, customers(T0)),
+    staff: forOrg(org.id, staff),
+    destinations: forOrg(org.id, destinations),
+    locations: forOrg(org.id, locations),
+    voyages: forOrg(org.id, voyages(T0)),
+  };
+  const p: PlatformState = {
     schema: SCHEMA_VERSION,
     seededAt: new Date(T0).toISOString(),
-    customers: customers(T0),
-    staff,
-    destinations,
-    locations,
-    voyages: voyages(T0),
-    packages: [],
-    shipments: [],
-    purchaseInvoices: [],
-    bills: [],
-    payments: [],
-    exceptions: [],
-    deliveries: [],
-    claims: [],
-    tickets: [],
-    conversations: [],
-    notifications: [],
-    events: [],
-    procurements: [],
-    quotes: [],
-    session: { role: "customer", customerId: "cus_trevor", staffId: "stf_renee" },
+    organizations: [org],
+    tenants: { [org.id]: s },
+    session: { organizationId: org.id, role: "customer", customerId: "cus_trevor", staffId: "stf_renee" },
     seq: {},
   };
 
-  withState(s, () => {
+  withState(p, () => withTenant(org.id, () => {
     const at = <T,>(daysAgo: number, fn: () => T) => atTime(T0 - daysAgo * DAY, fn);
     const cust = (id: string) => s.customers.find((c) => c.id === id)!;
     const who = (id: string) => svc.customerActor(cust(id));
@@ -325,9 +337,10 @@ function build(): DbState {
     at(0, () => svc.runSystemChecks());
     // History older than two days has already been seen.
     for (const n of s.notifications) if (T0 - new Date(n.at).getTime() > 2 * DAY) n.read = true;
-  });
+  }));
 
-  return s;
+  withState(p, () => seedOtherOrganizations(T0));
+  return p;
 }
 
 registerSeeder(build);
