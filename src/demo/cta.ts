@@ -1,5 +1,5 @@
 /** Where the demo's calls to action go. Swap for a booking tool / CRM form when ready. */
-export const BOOK_DEMO_EMAIL = "demo@shippingos.example";
+export const BOOK_DEMO_EMAIL = "tcarmstrong96@icloud.com";
 export const WHATSAPP_NUMBER = "12428012847";
 
 export const bookDemoHref = (operation?: string) =>
