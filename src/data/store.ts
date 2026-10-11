@@ -40,6 +40,7 @@ const STORAGE_KEY = "thelink-os";
 export type Session = { role: Role; customerId: ID; staffId: ID };
 
 export type DbState = {
+  organization: import("@/domain/modules").Organization;
   schema: number;
   seededAt: string;
   customers: Customer[];
@@ -88,7 +89,11 @@ function load(): DbState {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as DbState;
-        if (parsed.schema === SCHEMA_VERSION) return parsed;
+        if (parsed.schema === SCHEMA_VERSION) {
+          // Preserve previously saved demo records after tenant setup was added.
+          parsed.organization ??= fresh().organization;
+          return parsed;
+        }
       }
     } catch {
       /* corrupted or blocked — reseed */

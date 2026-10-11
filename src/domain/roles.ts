@@ -95,7 +95,8 @@ export const OPS_NAV: { href: string; label: string; icon: string; roles: Role[]
   { href: "/support", label: "Support", icon: "🎧", roles: ["support", "manager", "admin"] },
   { href: "/customers", label: "Customers", icon: "👥", module: "customers", roles: ["support", "accounting", "manager", "admin", "warehouse", "customs"] },
   { href: "/procurement", label: "Procurement", icon: "🛒", roles: ["manager", "admin"] },
-  { href: "/analytics", label: "Analytics", icon: "📈", module: "analytics", roles: ["manager", "admin"] },\n  { href: "/admin/modules", label: "Platform", icon: "🧩", roles: ["manager", "admin"] },
+  { href: "/analytics", label: "Analytics", icon: "📈", module: "analytics", roles: ["manager", "admin"] },
+  { href: "/admin/modules", label: "Platform", icon: "🧩", roles: ["manager", "admin"] },
 ];
 
 export function canSeeOpsPath(role: Role, pathname: string) {
