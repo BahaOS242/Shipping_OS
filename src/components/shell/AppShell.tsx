@@ -20,6 +20,12 @@ let checked = false;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  if (pathname === "/pilot" || pathname.startsWith("/pilot/")) return <>{children}</>;
+  return <DemoAppShell>{children}</DemoAppShell>;
+}
+
+function DemoAppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const live = useLive();
   useEffect(() => {
     if (live && !checked) {

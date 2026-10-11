@@ -11,6 +11,12 @@ writing **one source of truth**.
 **DEMO MODE.** Every person, package, price, payment, message and customs
 decision is simulated. No real transactions happen.
 
+## PostgreSQL pilot
+
+A separate staff intake workspace is available at `/pilot`. See [PILOT.md](PILOT.md)
+for database setup, restricted credentials, staff provisioning and verification.
+The remaining application routes continue to use the demo store.
+
 ## Run it
 
 ```bash
