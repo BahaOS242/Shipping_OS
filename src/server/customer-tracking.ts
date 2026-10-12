@@ -40,7 +40,10 @@ export async function tracking(
   db: PoolClient,
   customer: CustomerSession,
   packageId: string | null,
+  query = "",
 ) {
+  if (query.length > 100) throw new PilotError(400, "Search is too long.");
+  const term = "%" + query.trim().replace(/[\\%_]/g, "\\$&") + "%";
   const values = [customer.organization_id, customer.customer_id];
   if (packageId) {
     if (
@@ -50,7 +53,7 @@ export async function tracking(
     )
       throw new PilotError(400, "Invalid package reference.");
     const pkg = await db.query(
-      "SELECT id,tracking_number,status,weight_kg,length_cm,width_cm,height_cm,created_at,updated_at FROM packages WHERE organization_id=$1 AND customer_id=$2 AND id=$3",
+      "SELECT id,tracking_number,status,weight_kg,length_cm,width_cm,height_cm,destination,service,(hold_reason IS NOT NULL) AS on_hold,created_at,updated_at FROM packages WHERE organization_id=$1 AND customer_id=$2 AND id=$3",
       [...values, packageId],
     );
     if (!pkg.rowCount) throw new PilotError(404, "Package not found.");
@@ -61,8 +64,8 @@ export async function tracking(
     return { package: pkg.rows[0], events: events.rows };
   }
   const packages = await db.query(
-    "SELECT id,tracking_number,status,weight_kg,updated_at FROM packages WHERE organization_id=$1 AND customer_id=$2 ORDER BY updated_at DESC,id DESC LIMIT 50",
-    values,
+    "SELECT id,tracking_number,status,weight_kg,destination,service,(hold_reason IS NOT NULL) AS on_hold,updated_at FROM packages WHERE organization_id=$1 AND customer_id=$2 AND tracking_number ILIKE $3 ORDER BY updated_at DESC,id DESC LIMIT 50",
+    [...values, term],
   );
   return {
     customer: customer.display_name,

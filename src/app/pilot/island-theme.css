@@ -327,3 +327,36 @@
     padding: 20px;
   }
 }
+.package-journey {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 22px 0 14px;
+}
+.package-journey li {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--island-muted);
+  overflow-wrap: anywhere;
+}
+.package-journey li > span:first-child {
+  height: 5px;
+  border-radius: 8px;
+  background: var(--island-line);
+}
+.package-journey li[data-reached="true"] > span:first-child {
+  background: var(--island-accent);
+}
+.package-journey li[aria-current="step"] {
+  font-weight: 700;
+  color: var(--island-text);
+}
+.pilot-appearance
+  .pilot-ui
+  [aria-label="Warehouse queues"]
+  button[aria-pressed="true"] {
+  background: var(--island-accent);
+  color: var(--island-on-accent);
+}

@@ -133,6 +133,23 @@ async function locked(
     throw new PilotError(409, "This record changed. Refresh before saving.");
   return row;
 }
+export async function packageHistory(
+  db: PoolClient,
+  staff: Staff,
+  packageId: string,
+) {
+  const reference = id(packageId);
+  const result = await db.query(
+    "SELECT p.id,p.tracking_number,p.status,p.hold_reason,c.display_name FROM packages p JOIN customers c ON c.organization_id=p.organization_id AND c.id=p.customer_id WHERE p.organization_id=$1 AND p.id=$2",
+    [staff.organization_id, reference],
+  );
+  if (!result.rowCount) throw new PilotError(404, "Package not found.");
+  const events = await db.query(
+    "SELECT id,event_type,from_status,to_status,occurred_at FROM package_events WHERE organization_id=$1 AND package_id=$2 ORDER BY occurred_at DESC,id DESC LIMIT 100",
+    [staff.organization_id, reference],
+  );
+  return { package: result.rows[0], events: events.rows };
+}
 export async function snapshot(db: PoolClient, s: Staff, q: string = "") {
   if (q.length > 100) throw new PilotError(400, "Search is too long.");
   const term = "%" + q.trim().replace(/[\\%_]/g, "\\$&") + "%";

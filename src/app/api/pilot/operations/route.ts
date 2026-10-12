@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withOperator } from "@/server/pilot";
-import { snapshot, operation } from "@/server/operations";
+import { snapshot, operation, packageHistory } from "@/server/operations";
 import {
   failure,
   readBody,
@@ -10,9 +10,13 @@ import {
 export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
-    const q = new URL(request.url).searchParams.get("q") ?? "";
-    const result = await withOperator(await sessionToken(), (db, s) =>
-      snapshot(db, s, q),
+    const params = new URL(request.url).searchParams;
+    const q = params.get("q") ?? "";
+    const packageId = params.get("packageId");
+    const result = await withOperator(await sessionToken(), async (db, s) =>
+      packageId
+        ? await packageHistory(db, s, packageId)
+        : await snapshot(db, s, q),
     );
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },

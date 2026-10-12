@@ -5,9 +5,10 @@ import { failure } from "@/server/pilot-http";
 export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
-    const packageId = new URL(request.url).searchParams.get("packageId");
+    const params = new URL(request.url).searchParams;
+    const packageId = params.get("packageId");
     const data = await withCustomer(await customerToken(), (db, customer) =>
-      tracking(db, customer, packageId),
+      tracking(db, customer, packageId, params.get("q") ?? ""),
     );
     return NextResponse.json(data, {
       headers: { "Cache-Control": "no-store" },

@@ -10,12 +10,15 @@ import {
   receive,
   validateIntake,
 } from "../src/server/pilot";
-import { operation, snapshot } from "../src/server/operations";
+import { operation, snapshot, packageHistory } from "../src/server/operations";
 import {
   createCustomer,
   validateCustomer,
 } from "../src/server/pilot-customers";
-import { withCustomer } from "../src/server/customer-tracking";
+import {
+  withCustomer,
+  tracking as customerTracking,
+} from "../src/server/customer-tracking";
 import {
   customerOperation,
   customerSnapshot,
@@ -253,6 +256,26 @@ async function main() {
       ),
     );
     eq(intake.status, "received");
+    const history = await withOperator(tokens.warehouse, (db, s) =>
+      packageHistory(db, s, intake.id),
+    );
+    eq(history.package.id, intake.id);
+    eq(history.events[0].to_status, "received");
+    await denied(
+      () =>
+        withOperator(tokens.foreign, (db, s) =>
+          packageHistory(db, s, intake.id),
+        ),
+      404,
+    );
+    await denied(
+      () =>
+        withOperator(tokens.warehouse, (db, s) =>
+          packageHistory(db, s, "invalid"),
+        ),
+      400,
+    );
+
     let p = await run(
       "package.update",
       {
@@ -272,6 +295,11 @@ async function main() {
       409,
     );
     await run("package.hold", { reason: "Review" }, p.id, "support");
+    eq(
+      (await withCustomer(ct, (db, c) => customerTracking(db, c, p.id))).package
+        .on_hold,
+      true,
+    );
     await denied(
       () =>
         run("package.transition", { status: "processing" }, p.id, "warehouse"),
@@ -285,6 +313,12 @@ async function main() {
       "warehouse",
     );
     p = await run("package.transition", { status: "ready" }, p.id, "warehouse");
+    const customerReady = await withCustomer(ct, (db, c) =>
+      customerTracking(db, c, p.id),
+    );
+    eq(customerReady.package.status, "ready");
+    eq(customerReady.package.on_hold, false);
+    eq(customerReady.events?.[0]?.to_status, "ready");
     eq(p.status, "ready");
     const sh = await run(
       "shipment.create",

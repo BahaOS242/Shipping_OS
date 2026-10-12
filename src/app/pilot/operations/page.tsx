@@ -1,4 +1,8 @@
 "use client";
+import {
+  PackageProgress,
+  packageStatus,
+} from "@/components/pilot/PackageProgress";
 import Link from "next/link";
 import { BillingBreakdown } from "@/components/pilot/BillingBreakdown";
 import { PilotStat } from "@/components/pilot/Dashboard";
@@ -106,7 +110,17 @@ export default function Operations() {
     [search, setSearch] = useState(""),
     [panel, setPanel] = useState<Panel | null>(null),
     [privateCode, setPrivateCode] = useState(""),
-    [uploadTarget, setUploadTarget] = useState<Row | null>(null);
+    [uploadTarget, setUploadTarget] = useState<Row | null>(null),
+    [warehouseFilter, setWarehouseFilter] = useState("all"),
+    [history, setHistory] = useState<{
+      package: Row;
+      events: {
+        id: string;
+        event_type: string;
+        to_status: string | null;
+        occurred_at: string;
+      }[];
+    } | null>(null);
   const pending = useRef<{ body: string; key: string } | null>(null);
   useEffect(() => {
     let active = true;
@@ -553,6 +567,7 @@ export default function Operations() {
                       setPanel(null);
                       setUploadTarget(null);
                       setPrivateCode("");
+                      setHistory(null);
                     }}
                   >
                     {name}
@@ -625,6 +640,54 @@ export default function Operations() {
                 Find
               </button>
             </form>
+            {history && (
+              <section
+                className="mb-6 rounded-2xl border bg-white p-6"
+                aria-label="Staff package tracking"
+              >
+                <div className="flex flex-wrap justify-between gap-3">
+                  <h2 className="break-all text-xl font-bold">
+                    {String(history.package.tracking_number)} · History
+                  </h2>
+                  <button className={button} onClick={() => setHistory(null)}>
+                    Close history
+                  </button>
+                </div>
+                <p className="mt-3">
+                  {String(history.package.display_name)} ·{" "}
+                  {packageStatus[history.package.status ?? ""] ??
+                    history.package.status}
+                </p>
+                <PackageProgress status={history.package.status ?? ""} />
+                {Boolean(history.package.hold_reason) && (
+                  <p className="mt-3 text-amber-800">
+                    On hold: {String(history.package.hold_reason)}
+                  </p>
+                )}
+                <ol className="mt-5 space-y-4">
+                  {history.events.map((event) => (
+                    <li key={event.id} className="border-l-2 pl-4">
+                      <strong>
+                        {packageStatus[event.to_status ?? ""] ??
+                          event.event_type.replaceAll(".", " ")}
+                      </strong>
+                      <time
+                        className="mt-1 block text-sm text-slate-500"
+                        dateTime={event.occurred_at}
+                      >
+                        {new Date(event.occurred_at).toLocaleString()}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+                {!history.events.length && (
+                  <p className="mt-4 text-slate-600">No package history yet.</p>
+                )}
+                <p className="mt-5 text-sm text-slate-500">
+                  Latest 100 package updates. Current holds are shown above.
+                </p>
+              </section>
+            )}
             {panel && (
               <form
                 onSubmit={submit}
@@ -1108,185 +1171,265 @@ export default function Operations() {
               </section>
             )}
             {tab === "Warehouse" && (
-              <section className="grid gap-4 md:grid-cols-2">
-                {data.packages.map((p) => (
-                  <article
-                    key={p.id}
-                    className="rounded-xl border bg-white p-5"
-                  >
-                    <h2 className="break-all text-lg font-bold">
-                      {String(p.tracking_number)}
-                    </h2>
-                    <p className="mt-2">
-                      {p.display_name} · {p.status} ·{" "}
-                      {String(p.weight_kg ?? "—")} kg
-                    </p>
-                    <p className="mt-2 text-slate-600">
-                      {String(p.destination || "Destination pending")} · Bin{" "}
-                      {String(p.bin || "pending")}
-                    </p>
-                    {Boolean(p.hold_reason) && (
-                      <p className="mt-2 text-amber-800">
-                        Hold: {String(p.hold_reason)}
-                      </p>
-                    )}
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Link
-                        href={"/pilot/label/" + p.id}
-                        className={button}
-                        target="_blank"
+              <section>
+                <div
+                  className="mb-5 flex flex-wrap gap-2"
+                  aria-label="Warehouse queues"
+                >
+                  {[
+                    ["all", "All"],
+                    ["received", "New arrivals"],
+                    ["processing", "Preparing"],
+                    ["ready", "Ready to ship"],
+                    ["held", "On hold"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      className={button}
+                      aria-pressed={warehouseFilter === value}
+                      onClick={() => {
+                        setWarehouseFilter(value);
+                        setHistory(null);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mb-4 text-sm text-slate-600">
+                  Latest 100 matching packages. Search above by tracking number,
+                  customer, or bin.
+                </p>
+                {!data.packages.some(
+                  (p) =>
+                    warehouseFilter === "all" ||
+                    (warehouseFilter === "held"
+                      ? Boolean(p.hold_reason)
+                      : p.status === warehouseFilter && !p.hold_reason),
+                ) && (
+                  <p className="rounded-xl border bg-white p-6">
+                    No packages in this queue. Try another queue or search.
+                  </p>
+                )}
+                <div className="grid gap-4 md:grid-cols-2">
+                  {data.packages
+                    .filter(
+                      (p) =>
+                        warehouseFilter === "all" ||
+                        (warehouseFilter === "held"
+                          ? Boolean(p.hold_reason)
+                          : p.status === warehouseFilter && !p.hold_reason),
+                    )
+                    .map((p) => (
+                      <article
+                        key={p.id}
+                        className="rounded-xl border bg-white p-5"
                       >
-                        Print label
-                      </Link>
-                      <button
-                        className={button}
-                        disabled={busy}
-                        onClick={() => {
-                          setUploadTarget(p);
-                          setPanel(null);
-                        }}
-                      >
-                        Attach file
-                      </button>
-                      {allowed(warehouse) && (
-                        <>
+                        <h2 className="break-all text-lg font-bold">
+                          {String(p.tracking_number)}
+                        </h2>
+                        <p className="mt-2">
+                          {p.display_name} ·{" "}
+                          {packageStatus[p.status ?? ""] ?? p.status} ·{" "}
+                          {String(p.weight_kg ?? "—")} kg
+                        </p>
+                        <p className="mt-2 text-slate-600">
+                          {String(p.destination || "Destination pending")} · Bin{" "}
+                          {String(p.bin || "pending")}
+                        </p>
+                        {Boolean(p.hold_reason) && (
+                          <p className="mt-2 text-amber-800">
+                            Hold: {String(p.hold_reason)}
+                          </p>
+                        )}
+                        <PackageProgress status={p.status ?? ""} />
+                        <div className="mt-4 flex flex-wrap gap-2">
                           <button
                             className={button}
                             disabled={busy}
                             onClick={() =>
-                              open({
-                                title: "Package details",
-                                action: "package.update",
-                                row: p,
-                                fields: [
-                                  {
-                                    name: "bin",
-                                    label: "Warehouse bin",
-                                    value: String(p.bin ?? ""),
-                                  },
-                                  {
-                                    name: "merchant",
-                                    label: "Merchant",
-                                    value: String(p.merchant ?? ""),
-                                  },
-                                  {
-                                    name: "itemDescription",
-                                    label: "Description",
-                                    type: "textarea",
-                                    value: String(p.item_description ?? ""),
-                                  },
-                                  {
-                                    name: "destination",
-                                    label: "Destination",
-                                    value: String(p.destination ?? ""),
-                                    required: true,
-                                  },
-                                  {
-                                    name: "service",
-                                    label: "Service",
-                                    type: "select",
-                                    value: String(p.service),
-                                    options: ["air", "ocean"].map(option),
-                                  },
-                                  {
-                                    name: "declaredValueCents",
-                                    label: "Declared value in USD (optional)",
-                                    type: "number",
-                                    value:
-                                      p.declared_value_cents === null
-                                        ? ""
-                                        : Number(p.declared_value_cents),
-                                  },
-                                  {
-                                    name: "condition",
-                                    label: "Condition after human inspection",
-                                    type: "select",
-                                    value: String(p.condition),
-                                    options: ["good", "damaged"].map(option),
-                                  },
-                                ],
+                              run(async () => {
+                                const r = await fetch(
+                                  "/api/pilot/operations?packageId=" +
+                                    encodeURIComponent(p.id),
+                                  { cache: "no-store" },
+                                );
+                                if (!r.ok)
+                                  throw new Error((await r.json()).error);
+                                setHistory(await r.json());
+                                setPanel(null);
+                                setUploadTarget(null);
+                                window.scrollTo({
+                                  top: 0,
+                                  behavior: "instant",
+                                });
                               })
                             }
                           >
-                            Edit details
+                            View history
                           </button>
-                          {["received", "processing"].includes(
-                            p.status ?? "",
-                          ) && (
+                          <Link
+                            href={"/pilot/label/" + p.id}
+                            className={button}
+                            target="_blank"
+                          >
+                            Print label
+                          </Link>
+                          <button
+                            className={button}
+                            disabled={busy}
+                            onClick={() => {
+                              setUploadTarget(p);
+                              setPanel(null);
+                            }}
+                          >
+                            Attach file
+                          </button>
+                          {allowed(warehouse) && (
+                            <>
+                              <button
+                                className={button}
+                                disabled={busy}
+                                onClick={() =>
+                                  open({
+                                    title: "Package details",
+                                    action: "package.update",
+                                    row: p,
+                                    fields: [
+                                      {
+                                        name: "bin",
+                                        label: "Warehouse bin",
+                                        value: String(p.bin ?? ""),
+                                      },
+                                      {
+                                        name: "merchant",
+                                        label: "Merchant",
+                                        value: String(p.merchant ?? ""),
+                                      },
+                                      {
+                                        name: "itemDescription",
+                                        label: "Description",
+                                        type: "textarea",
+                                        value: String(p.item_description ?? ""),
+                                      },
+                                      {
+                                        name: "destination",
+                                        label: "Destination",
+                                        value: String(p.destination ?? ""),
+                                        required: true,
+                                      },
+                                      {
+                                        name: "service",
+                                        label: "Service",
+                                        type: "select",
+                                        value: String(p.service),
+                                        options: ["air", "ocean"].map(option),
+                                      },
+                                      {
+                                        name: "declaredValueCents",
+                                        label:
+                                          "Declared value in USD (optional)",
+                                        type: "number",
+                                        value:
+                                          p.declared_value_cents === null
+                                            ? ""
+                                            : Number(p.declared_value_cents),
+                                      },
+                                      {
+                                        name: "condition",
+                                        label:
+                                          "Condition after human inspection",
+                                        type: "select",
+                                        value: String(p.condition),
+                                        options: ["good", "damaged"].map(
+                                          option,
+                                        ),
+                                      },
+                                    ],
+                                  })
+                                }
+                              >
+                                Edit details
+                              </button>
+                              {!p.hold_reason &&
+                                ["received", "processing"].includes(
+                                  p.status ?? "",
+                                ) && (
+                                  <button
+                                    className={button}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      open({
+                                        title: "Move package forward",
+                                        action: "package.transition",
+                                        row: p,
+                                        fields: [
+                                          {
+                                            name: "status",
+                                            label: "Next status",
+                                            type: "select",
+                                            options: [
+                                              option(
+                                                p.status === "received"
+                                                  ? "processing"
+                                                  : "ready",
+                                              ),
+                                            ],
+                                            value:
+                                              p.status === "received"
+                                                ? "processing"
+                                                : "ready",
+                                          },
+                                        ],
+                                      })
+                                    }
+                                  >
+                                    {p.status === "received"
+                                      ? "Start processing"
+                                      : "Mark ready"}
+                                  </button>
+                                )}
+                            </>
+                          )}
+                          {allowed([...warehouse, "customs", "support"]) && (
                             <button
                               className={button}
                               disabled={busy}
                               onClick={() =>
                                 open({
-                                  title: "Move package forward",
-                                  action: "package.transition",
+                                  title: "Package hold",
+                                  action: "package.hold",
                                   row: p,
+                                  note: "Leave the reason empty to release a hold.",
                                   fields: [
                                     {
-                                      name: "status",
-                                      label: "Next status",
-                                      type: "select",
-                                      options: [
-                                        option(
-                                          p.status === "received"
-                                            ? "processing"
-                                            : "ready",
-                                        ),
-                                      ],
-                                      value:
-                                        p.status === "received"
-                                          ? "processing"
-                                          : "ready",
+                                      name: "reason",
+                                      label: "Hold reason",
+                                      type: "textarea",
+                                      value: String(p.hold_reason ?? ""),
                                     },
                                   ],
                                 })
                               }
                             >
-                              {p.status === "received"
-                                ? "Start processing"
-                                : "Mark ready"}
+                              Hold / release
                             </button>
                           )}
-                        </>
-                      )}
-                      {allowed([...warehouse, "customs", "support"]) && (
-                        <button
-                          className={button}
-                          disabled={busy}
-                          onClick={() =>
-                            open({
-                              title: "Package hold",
-                              action: "package.hold",
-                              row: p,
-                              note: "Leave the reason empty to release a hold.",
-                              fields: [
-                                {
-                                  name: "reason",
-                                  label: "Hold reason",
-                                  type: "textarea",
-                                  value: String(p.hold_reason ?? ""),
-                                },
-                              ],
-                            })
-                          }
-                        >
-                          Hold / release
-                        </button>
-                      )}
-                    </div>
-                    {data.files
-                      .filter((f) => f.package_id === p.id)
-                      .map((f) => (
-                        <a
-                          key={f.id}
-                          className="mt-3 block break-all text-teal-700"
-                          href={"/api/pilot/files?id=" + f.id}
-                        >
-                          {String(f.name)}
-                        </a>
-                      ))}
-                  </article>
-                ))}
+                        </div>
+                        {data.files
+                          .filter((f) => f.package_id === p.id)
+                          .map((f) => (
+                            <a
+                              key={f.id}
+                              className="mt-3 block break-all text-teal-700"
+                              href={"/api/pilot/files?id=" + f.id}
+                            >
+                              {String(f.name)}
+                            </a>
+                          ))}
+                      </article>
+                    ))}
+                </div>
               </section>
             )}
             {(tab === "Shipments" || tab === "Customs") && (

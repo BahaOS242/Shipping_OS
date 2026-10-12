@@ -90,6 +90,49 @@ async function main() {
         own.packages[0].id === pkg.id,
     );
     checks++;
+    // Search older owned packages before the recent-results limit, and escape wildcard input.
+    const extras = await admin.query(
+      "INSERT INTO packages(organization_id,customer_id,tracking_number) SELECT $1,$2,'SEARCH-NEW-' || n FROM generate_series(1,55) n RETURNING id",
+      [org[0], cus[0]],
+    );
+    const found = await withCustomer(tokens[0], (db, c) =>
+      tracking(db, c, null, input.trackingNumber),
+    );
+    assert.equal(found.packages?.[0]?.id, pkg.id);
+    checks++;
+    const wildcard = await withCustomer(tokens[0], (db, c) =>
+      tracking(db, c, null, "%_"),
+    );
+    assert.equal(wildcard.packages?.length, 0);
+    checks++;
+    const peerSearch = await withCustomer(tokens[0], (db, c) =>
+      tracking(db, c, null, "PEER"),
+    );
+    assert.equal(peerSearch.packages?.length, 0);
+    checks++;
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          tracking(db, c, null, "x".repeat(101)),
+        ),
+      400,
+    );
+    await admin.query(
+      "UPDATE packages SET hold_reason='Internal warehouse review' WHERE id=$1",
+      [pkg.id],
+    );
+    const held = await withCustomer(tokens[0], (db, c) =>
+      tracking(db, c, pkg.id),
+    );
+    assert.equal(held.package?.on_hold, true);
+    assert.ok(!("hold_reason" in held.package));
+    checks++;
+    await admin.query("UPDATE packages SET hold_reason=NULL WHERE id=$1", [
+      pkg.id,
+    ]);
+    await admin.query("DELETE FROM packages WHERE id=ANY($1::uuid[])", [
+      extras.rows.map((r) => r.id),
+    ]);
     const detail = await withCustomer(tokens[0], (db, c) =>
       tracking(db, c, pkg.id),
     );

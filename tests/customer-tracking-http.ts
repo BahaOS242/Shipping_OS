@@ -99,6 +99,41 @@ async function main() {
     assert.equal(data.packages.length, 1);
     assert.equal(data.packages[0].id, pkg.id);
     assert.equal(data.customer, "My customer");
+    const searchResult = await fetch(
+      origin +
+        "/api/pilot/tracking?q=" +
+        encodeURIComponent(pkg.tracking_number),
+      { headers },
+    );
+    assert.equal(searchResult.status, 200);
+    assert.equal((await searchResult.json()).packages[0].id, pkg.id);
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/tracking?q=%25_", { headers }).then(
+          (r) => r.json(),
+        )
+      ).packages.length,
+      0,
+    );
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/tracking?q=" + "x".repeat(101), {
+          headers,
+        })
+      ).status,
+      400,
+    );
+    const historyUrl = origin + "/api/pilot/operations?packageId=" + pkg.id;
+    assert.equal((await fetch(historyUrl)).status, 401);
+    assert.equal((await fetch(historyUrl, { headers })).status, 401);
+    const staffHistory = await fetch(historyUrl, {
+      headers: { Cookie: staffCookie },
+    });
+    assert.equal(staffHistory.status, 200);
+    const historyResult = await staffHistory.json();
+    assert.equal(historyResult.package.id, pkg.id);
+    assert.equal(historyResult.events[0].to_status, "received");
+
     const assistantUrl = origin + "/api/pilot/customer/assistant";
     const ask = async (
       message: string,

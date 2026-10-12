@@ -1,4 +1,8 @@
 "use client";
+import {
+  PackageProgress,
+  packageStatus as status,
+} from "@/components/pilot/PackageProgress";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 type Package = {
@@ -7,6 +11,9 @@ type Package = {
   status: string;
   weight_kg: string | null;
   updated_at: string;
+  on_hold: boolean;
+  destination: string | null;
+  service: string;
 };
 type Inventory = {
   customer: string;
@@ -22,23 +29,14 @@ type Detail = {
     occurred_at: string;
   }[];
 };
-const status: Record<string, string> = {
-  expected: "On its way to our warehouse",
-  received: "We have your package",
-  processing: "We’re preparing your package",
-  ready: "Ready for shipping",
-  in_transit: "On its way",
-  arrived: "Arrived at destination",
-  delivered: "Delivered",
-  exception: "Our team is reviewing this package",
-};
 const date = (value: string) => new Date(value).toLocaleString();
 export default function CustomerTracking() {
   const [data, setData] = useState<Inventory | null>(null),
     [detail, setDetail] = useState<Detail | null>(null);
   const [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [query, setQuery] = useState("");
   useEffect(() => {
     let active = true;
     fetch("/api/pilot/tracking", { cache: "no-store" })
@@ -60,7 +58,10 @@ export default function CustomerTracking() {
     };
   }, []);
   async function inventory() {
-    const r = await fetch("/api/pilot/tracking", { cache: "no-store" });
+    const r = await fetch(
+      "/api/pilot/tracking?q=" + encodeURIComponent(query),
+      { cache: "no-store" },
+    );
     const result = await r.json();
     if (!r.ok) {
       if (r.status === 401) {
@@ -127,7 +128,7 @@ export default function CustomerTracking() {
         >
           Account, documents and support →
         </Link>
-        <header className="mb-8 flex items-start justify-between gap-4">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-teal-700">
               {data?.organization ?? "PCL Imports"} · CUSTOMER TRACKING
@@ -219,6 +220,37 @@ export default function CustomerTracking() {
                 Recorded weight: {detail.package.weight_kg} kg
               </p>
             )}
+            <PackageProgress status={detail.package.status} />
+            {detail.package.on_hold && (
+              <p
+                role="status"
+                className="mt-4 rounded-xl bg-amber-50 p-4 text-amber-800"
+              >
+                This package is on hold. Contact the team before arranging
+                shipping.
+              </p>
+            )}
+            <p className="mt-3 text-slate-600">
+              {detail.package.service === "ocean"
+                ? "Ocean freight"
+                : "Air freight"}{" "}
+              · {detail.package.destination || "Destination pending"}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                disabled={busy}
+                className="rounded-lg border px-4 py-3"
+                onClick={() => open(detail.package.id)}
+              >
+                {busy ? "Refreshing…" : "Refresh tracking"}
+              </button>
+              <Link
+                className="rounded-lg border px-4 py-3"
+                href={"/pilot/account/packages/" + detail.package.id}
+              >
+                Documents & shipment details
+              </Link>
+            </div>
             <h3 className="mt-8 text-lg font-semibold">Package history</h3>
             {!detail.events.length ? (
               <p className="mt-3 text-slate-600">
@@ -253,6 +285,33 @@ export default function CustomerTracking() {
           </section>
         ) : (
           <section>
+            <form
+              className="mb-6"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void action(inventory);
+              }}
+            >
+              <label htmlFor="tracking-search" className="font-semibold">
+                Find your package
+              </label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="tracking-search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  maxLength={100}
+                  placeholder="Tracking number"
+                  className="min-w-0 flex-1 rounded-lg border bg-white p-3"
+                />
+                <button
+                  disabled={busy}
+                  className="rounded-lg border bg-white px-4"
+                >
+                  Search
+                </button>
+              </div>
+            </form>
             <div className="mb-5 flex items-center justify-between gap-3">
               <p className="text-sm text-slate-600">
                 50 most recently updated packages
@@ -267,10 +326,13 @@ export default function CustomerTracking() {
             </div>
             {!data.packages.length ? (
               <div className="rounded-2xl border bg-white p-6">
-                <h2 className="text-lg font-semibold">No packages yet</h2>
+                <h2 className="text-lg font-semibold">
+                  {query ? "No matching packages" : "No packages yet"}
+                </h2>
                 <p className="mt-2 text-slate-600">
-                  Your packages will appear here when they are registered or
-                  received by the warehouse.
+                  {query
+                    ? "Check the tracking number and search again. Search only includes packages in your account."
+                    : "Your packages will appear here when they are registered or received by the warehouse."}
                 </p>
               </div>
             ) : (
@@ -286,6 +348,12 @@ export default function CustomerTracking() {
                     <p className="mt-2 font-semibold text-teal-700">
                       {status[pkg.status] ?? "Status update"}
                     </p>
+                    {pkg.on_hold && (
+                      <p className="mt-3 text-amber-800">
+                        On hold · Please contact the team
+                      </p>
+                    )}
+                    <PackageProgress status={pkg.status} />
                     <p className="mt-3 text-sm text-slate-500">
                       Updated {date(pkg.updated_at)}
                       {pkg.weight_kg ? ` · ${pkg.weight_kg} kg` : ""}
