@@ -99,6 +99,25 @@ async function main() {
     assert.equal(data.packages.length, 1);
     assert.equal(data.packages[0].id, pkg.id);
     assert.equal(data.customer, "My customer");
+    const portalUrl = origin + "/pilot/account/packages/" + pkg.id;
+    const portal = await fetch(portalUrl, { headers });
+    assert.equal(portal.status, 200);
+    assert.match(portal.headers.get("cache-control") ?? "", /no-store/);
+    assert.match(await portal.text(), /Package details/);
+    const denied = await fetch(
+      origin + "/pilot/account/packages/" + peerPkg.id,
+      { headers },
+    );
+    assert.equal(denied.status, 404);
+    assert.ok(!(await denied.text()).includes("PRIVATE-PEER"));
+    for (const auth of [{} as Record<string, string>, { Cookie: staffCookie }]) {
+      const unauth = await fetch(portalUrl, {
+        headers: auth,
+        redirect: "manual",
+      });
+      assert.equal(unauth.status, 307);
+      assert.equal(unauth.headers.get("location"), "/pilot/sign-in");
+    }
     const detail = await fetch(
       origin + "/api/pilot/tracking?packageId=" + pkg.id,
       { headers },

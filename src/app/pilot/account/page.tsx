@@ -36,6 +36,8 @@ export default function Account() {
     [tab, setTab] = useState("Dashboard"),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
+  const [search, setSearch] = useState(""),
+    [packageStatus, setPackageStatus] = useState("all");
   const pending = useRef<{ body: string; key: string } | null>(null);
   useEffect(() => {
     let active = true;
@@ -43,8 +45,25 @@ export default function Account() {
       .then(async (r) => {
         const result = await r.json();
         if (!active) return;
-        if (r.ok) setData(result);
-        else if (r.status !== 401) setMessage(result.error);
+        if (r.ok) {
+          setData(result);
+          const requested = new URLSearchParams(window.location.search).get(
+            "tab",
+          );
+          if (
+            requested &&
+            [
+              "Dashboard",
+              "Packages",
+              "Shipments",
+              "Bills",
+              ...Object.values(labels),
+              "Notifications",
+              "Settings",
+            ].includes(requested)
+          )
+            setTab(requested);
+        } else if (r.status !== 401) setMessage(result.error);
         setReady(true);
       })
       .catch(() => {
@@ -289,37 +308,184 @@ export default function Account() {
                   </button>
                 </form>
                 <div className="space-y-4">
-                  {data.packages.map((p) => (
-                    <article
-                      key={p.id}
-                      className="rounded-xl border bg-white p-5"
-                    >
-                      <h2 className="break-all font-bold">
-                        {String(p.tracking_number)}
-                      </h2>
-                      <p className="mt-2">
-                        {p.status?.replaceAll("_", " ")} ·{" "}
-                        {String(p.destination)} · {String(p.service)}
-                      </p>
-                      {Boolean(p.hold_reason) && (
-                        <p className="mt-2 text-amber-800">
-                          Our team is reviewing a hold on this package. Contact
-                          support for help.
-                        </p>
-                      )}
-                      <Link
-                        className="mt-3 inline-block text-teal-700"
-                        href="/pilot/tracking"
+                  <div className="rounded-2xl border bg-white p-5">
+                    <label className="block">
+                      Search my packages
+                      <input
+                        className={input}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Tracking, merchant or contents"
+                      />
+                    </label>
+                    <label className="mt-4 block">
+                      Package status
+                      <select
+                        className={input}
+                        value={packageStatus}
+                        onChange={(e) => setPackageStatus(e.target.value)}
                       >
-                        View tracking history
-                      </Link>
-                    </article>
-                  ))}
+                        <option value="all">All statuses</option>
+                        {Array.from(
+                          new Set(data.packages.map((p) => p.status)),
+                        ).map((status) => (
+                          <option key={status} value={status}>
+                            {status?.replaceAll("_", " ")}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="mt-3 text-sm text-slate-500">
+                      Showing your latest {data.packages.length} packages.
+                    </p>
+                  </div>
+                  {!data.packages.filter(
+                    (p) =>
+                      (packageStatus === "all" || p.status === packageStatus) &&
+                      [p.tracking_number, p.merchant, p.item_description].some(
+                        (v) =>
+                          String(v ?? "")
+                            .toLowerCase()
+                            .includes(search.toLowerCase()),
+                      ),
+                  ).length && <p>No packages match your search.</p>}
+                  {data.packages
+                    .filter(
+                      (p) =>
+                        (packageStatus === "all" ||
+                          p.status === packageStatus) &&
+                        [
+                          p.tracking_number,
+                          p.merchant,
+                          p.item_description,
+                        ].some((v) =>
+                          String(v ?? "")
+                            .toLowerCase()
+                            .includes(search.toLowerCase()),
+                        ),
+                    )
+                    .map((p) => (
+                      <article
+                        key={p.id}
+                        className="rounded-xl border bg-white p-5"
+                      >
+                        <h2 className="break-all font-bold">
+                          {String(p.tracking_number)}
+                        </h2>
+                        <p className="mt-2">
+                          {p.status?.replaceAll("_", " ")} ·{" "}
+                          {String(p.destination)} · {String(p.service)}
+                        </p>
+                        {Boolean(p.hold_reason) && (
+                          <p className="mt-2 text-amber-800">
+                            Our team is reviewing a hold on this package.
+                            Contact support for help.
+                          </p>
+                        )}
+                        <Link
+                          className="mt-3 inline-block text-teal-700"
+                          href={`/pilot/account/packages/${p.id}`}
+                        >
+                          View package & tracking history
+                        </Link>
+                      </article>
+                    ))}
                 </div>
               </section>
             )}
             {tab === "Shipments" && (
               <section className="space-y-4">
+                <form
+                  className="rounded-2xl border bg-white p-6"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget,
+                      values = new FormData(form);
+                    void run(async () => {
+                      await post("shipping.request", {
+                        packageIds: values.getAll("packageIds"),
+                        destination: values.get("destination"),
+                        service: values.get("service"),
+                        deliveryMethod: values.get("deliveryMethod"),
+                        note: values.get("note"),
+                      });
+                      form.reset();
+                      await load();
+                      setMessage(
+                        "Your shipping request is saved. The team will confirm availability, customs requirements and pricing. Follow it in Support.",
+                      );
+                    });
+                  }}
+                >
+                  <h2 className="text-xl font-bold">Ready to ship?</h2>
+                  <p className="mt-2 text-slate-600">
+                    Select ready packages to request shipping together. The team
+                    confirms your route, price and documents before dispatch.
+                  </p>
+                  <fieldset className="mt-5">
+                    <legend className="font-semibold">
+                      Packages to include
+                    </legend>
+                    {data.packages
+                      .filter((p) => p.status === "ready" && !p.hold_reason)
+                      .map((p) => (
+                        <label className="mt-3 flex gap-3" key={p.id}>
+                          <input
+                            type="checkbox"
+                            name="packageIds"
+                            value={p.id}
+                          />
+                          {String(p.tracking_number)}
+                        </label>
+                      ))}
+                    {!data.packages.some(
+                      (p) => p.status === "ready" && !p.hold_reason,
+                    ) && (
+                      <p className="mt-3 text-slate-500">
+                        Your packages will appear here when they are ready for
+                        shipping.
+                      </p>
+                    )}
+                  </fieldset>
+                  <label className="mt-4 block">
+                    Shipping destination
+                    <input
+                      name="destination"
+                      required
+                      maxLength={200}
+                      className={input}
+                    />
+                  </label>
+                  <label className="mt-4 block">
+                    Requested service
+                    <select name="service" className={input}>
+                      <option value="air">Air</option>
+                      <option value="ocean">Ocean</option>
+                    </select>
+                  </label>
+                  <label className="mt-4 block">
+                    Receive my shipment
+                    <select name="deliveryMethod" className={input}>
+                      <option value="pickup">Pickup</option>
+                      <option value="delivery">Delivery</option>
+                    </select>
+                  </label>
+                  <label className="mt-4 block">
+                    Delivery address or instructions
+                    <textarea name="note" maxLength={1000} className={input} />
+                  </label>
+                  <button
+                    className={`${button} mt-5`}
+                    disabled={
+                      busy ||
+                      !data.packages.some(
+                        (p) => p.status === "ready" && !p.hold_reason,
+                      )
+                    }
+                  >
+                    Request shipping
+                  </button>
+                </form>
                 {!data.shipments.length && <p>No shipments yet.</p>}
                 {data.shipments.map((s) => (
                   <article
@@ -339,6 +505,12 @@ export default function Account() {
                         {new Date(String(s.delivered_at)).toLocaleDateString()}
                       </p>
                     )}
+                    <Link
+                      className="mt-4 inline-block text-teal-700"
+                      href={`/pilot/account/shipments/${s.id}`}
+                    >
+                      View shipment details →
+                    </Link>
                   </article>
                 ))}
               </section>
@@ -368,8 +540,14 @@ export default function Account() {
                       {String(b.payload?.currency)}
                     </p>
                     <p className="mt-2 text-sm">
-                      Due {String(b.payload?.dueDate)}
+                      Due {String(b.payload?.dueDate ?? "Contact the team")}
                     </p>
+                    <Link
+                      className="mt-4 inline-block text-teal-700"
+                      href={`/pilot/account/bills/${b.id}`}
+                    >
+                      View bill & payment history →
+                    </Link>
                   </article>
                 ))}
                 {data.records
@@ -384,6 +562,36 @@ export default function Account() {
                       {String(p.payload?.currency ?? "USD")}
                     </p>
                   ))}
+              </section>
+            )}
+            {tab === "Documents" && (
+              <section className="mb-6 rounded-2xl border bg-white p-6">
+                <h2 className="text-xl font-bold">My document library</h2>
+                <p className="mt-2 text-slate-500">
+                  Your uploaded originals. Register a purchase document below,
+                  then attach its receipt.
+                </p>
+                {!data.files.length && (
+                  <p className="mt-4">No files uploaded yet.</p>
+                )}
+                {data.files.map((f) => (
+                  <div key={f.id} className="mt-4 border-t pt-4">
+                    <a
+                      className="break-all font-semibold text-teal-700"
+                      href={`/api/pilot/customer/files?id=${f.id}`}
+                    >
+                      {String(f.name)} ↓
+                    </a>
+                    {Boolean(f.package_id) && (
+                      <Link
+                        className="mt-2 block text-sm text-teal-700"
+                        href={`/pilot/account/packages/${f.package_id}`}
+                      >
+                        View related package →
+                      </Link>
+                    )}
+                  </div>
+                ))}
               </section>
             )}
             {kind && (

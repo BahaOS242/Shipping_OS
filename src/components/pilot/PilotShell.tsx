@@ -6,7 +6,7 @@ export function PilotShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   if (path.startsWith("/pilot/label/")) return <>{children}</>;
   const customer = ["/pilot/account", "/pilot/tracking", "/pilot/sign-in"].some(
-    (p) => path === p,
+    (p) => path === p || path.startsWith(p + "/"),
   );
   const links = customer
     ? [

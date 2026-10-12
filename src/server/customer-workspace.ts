@@ -65,6 +65,65 @@ export async function customerAction(
     data = object(input.data ?? {}),
     tenant = c.organization_id,
     customer = c.customer_id;
+  if (action === "shipping.request") {
+    fields(data, [
+      "packageIds",
+      "destination",
+      "service",
+      "deliveryMethod",
+      "note",
+    ]);
+    if (
+      !Array.isArray(data.packageIds) ||
+      !data.packageIds.length ||
+      data.packageIds.length > 25
+    )
+      throw new PilotError(400, "Select between 1 and 25 packages.");
+    const ids = data.packageIds.map(id);
+    if (new Set(ids).size !== ids.length)
+      throw new PilotError(400, "Select each package once.");
+    const destination = text(data.destination, 200, true),
+      service = text(data.service, 20, true),
+      method = text(data.deliveryMethod, 20, true),
+      note = text(data.note, 1000);
+    if (
+      !["air", "ocean"].includes(service) ||
+      !["pickup", "delivery"].includes(method)
+    )
+      throw new PilotError(
+        400,
+        "Choose a shipping service and delivery method.",
+      );
+    const packages = (
+      await db.query(
+        "SELECT p.id,p.tracking_number FROM packages p WHERE p.organization_id=$1 AND p.customer_id=$2 AND p.id=ANY($3::uuid[]) AND p.status='ready' AND coalesce(p.hold_reason,'')='' AND NOT EXISTS(SELECT 1 FROM shipment_packages l WHERE l.organization_id=p.organization_id AND l.package_id=p.id)",
+        [tenant, customer, ids],
+      )
+    ).rows;
+    if (packages.length !== ids.length)
+      throw new PilotError(
+        409,
+        "Choose your ready, unassigned packages without a hold. Contact the team if a package is unavailable.",
+      );
+    const description = `Shipping request: ${packages.map((p) => p.tracking_number).join(", ")} to ${destination} by ${service}, ${method}. ${note}`;
+    const result = await db.query(
+      "INSERT INTO pilot_records(organization_id,customer_id,kind,status,payload) VALUES($1,$2,'support','open',$3) RETURNING id",
+      [
+        tenant,
+        customer,
+        JSON.stringify({
+          description,
+          requestType: "shipping",
+          packageIds: ids,
+          destination,
+          service,
+          deliveryMethod: method,
+          note,
+        }),
+      ],
+    );
+    return { id: result.rows[0].id };
+  }
   if (action === "record.accept") {
     fields(data, ["accepted"]);
     if (typeof data.accepted !== "boolean")

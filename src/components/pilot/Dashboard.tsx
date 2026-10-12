@@ -85,8 +85,7 @@ export function CustomerDashboard({
     balances.set(c, (balances.get(c) ?? 0) + Number(b.balance_cents));
   }
   const balance =
-    [...balances].map(([c, v]) => money(v / 100, c) + " " + c).join(" · ") ||
-    "$0.00";
+    [...balances].map(([c, v]) => money(v / 100, c)).join(" · ") || "$0.00";
   return (
     <section aria-label="Your shipping overview">
       <div className="pilot-stats">

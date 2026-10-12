@@ -9,6 +9,8 @@ import {
   validateIntake,
   withStaff,
 } from "../src/server/pilot";
+import { customerOperation } from "../src/server/customer-workspace";
+import { customerDetail } from "../src/server/customer-detail";
 import { withCustomer, tracking } from "../src/server/customer-tracking";
 async function main() {
   if (
@@ -107,6 +109,144 @@ async function main() {
       () => withCustomer(tokens[0], (db, c) => tracking(db, c, "invalid")),
       400,
     );
+    const portalPackage = await withCustomer(tokens[0], (db, c) =>
+      customerDetail(db, c, "packages", pkg.id),
+    );
+    assert.equal(portalPackage.events.length, 1);
+    checks++;
+    assert.ok(
+      !("hold_reason" in portalPackage.item) &&
+        !("actor_user_id" in portalPackage.events[0]),
+    );
+    checks++;
+    for (const hidden of [peerPkg.id, otherPkg.id])
+      await rejects(
+        () =>
+          withCustomer(tokens[0], (db, c) =>
+            customerDetail(db, c, "packages", hidden),
+          ),
+        404,
+      );
+    const shipments: string[] = [],
+      bills: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const tenant = org[i === 2 ? 1 : 0];
+      shipments.push(
+        (
+          await admin.query(
+            "INSERT INTO shipments(organization_id,customer_id,destination,customs_notes) VALUES($1,$2,'Nassau','INTERNAL NOTE') RETURNING id",
+            [tenant, cus[i]],
+          )
+        ).rows[0].id,
+      );
+      bills.push(
+        (
+          await admin.query(
+            "INSERT INTO pilot_records(organization_id,customer_id,kind,status,payload) VALUES($1,$2,'bill','issued',$3) RETURNING id",
+            [
+              tenant,
+              cus[i],
+              JSON.stringify({
+                description: "Freight",
+                amountCents: 10000,
+                currency: "BSD",
+              }),
+            ],
+          )
+        ).rows[0].id,
+      );
+    }
+    await admin.query("INSERT INTO shipment_packages VALUES($1,$2,$3)", [
+      org[0],
+      shipments[0],
+      pkg.id,
+    ]);
+    // A privileged bad association must still not reveal another customer's package.
+    await admin.query("INSERT INTO shipment_packages VALUES($1,$2,$3)", [
+      org[0],
+      shipments[0],
+      peerPkg.id,
+    ]);
+    const shipment = await withCustomer(tokens[0], (db, c) =>
+      customerDetail(db, c, "shipments", shipments[0]),
+    );
+    assert.equal(shipment.related.length, 1);
+    assert.equal(shipment.related[0].id, pkg.id);
+    checks++;
+    assert.ok(!("customs_notes" in shipment.item));
+    checks++;
+    for (const kind of ["shipments", "bills"])
+      for (const hidden of (kind === "shipments" ? shipments : bills).slice(1))
+        await rejects(
+          () =>
+            withCustomer(tokens[0], (db, c) =>
+              customerDetail(db, c, kind, hidden),
+            ),
+          404,
+        );
+    for (const [status, amount] of [
+      ["recorded", 2500],
+      ["refunded", 1000],
+    ] as const)
+      await admin.query(
+        "INSERT INTO pilot_records(organization_id,customer_id,kind,status,payload) VALUES($1,$2,'payment',$3,$4)",
+        [
+          org[0],
+          cus[0],
+          status,
+          JSON.stringify({
+            billId: bills[0],
+            amountCents: amount,
+            currency: "BSD",
+          }),
+        ],
+      );
+    // Even an incorrectly linked payment from another customer must be excluded.
+    await admin.query(
+      "INSERT INTO pilot_records(organization_id,customer_id,kind,status,payload) VALUES($1,$2,'payment','recorded',$3)",
+      [
+        org[0],
+        cus[1],
+        JSON.stringify({
+          billId: bills[0],
+          amountCents: 9999,
+          currency: "BSD",
+        }),
+      ],
+    );
+    const bill = await withCustomer(tokens[0], (db, c) =>
+      customerDetail(db, c, "bills", bills[0]),
+    );
+    assert.equal(bill.balance, 7500);
+    assert.equal(bill.related.length, 2);
+    checks++;
+    const draft = (
+      await admin.query(
+        "INSERT INTO pilot_records(organization_id,customer_id,kind,status,payload) VALUES($1,$2,'bill','draft','{}') RETURNING id",
+        [org[0], cus[0]],
+      )
+    ).rows[0].id;
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerDetail(db, c, "bills", draft),
+        ),
+      404,
+    );
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerDetail(db, c, "invalid", pkg.id),
+        ),
+      404,
+    );
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerDetail(db, c, "packages", "invalid"),
+        ),
+      400,
+    );
     const direct = await withCustomer(tokens[0], async (db) => ({
       packages: (await db.query("SELECT * FROM packages")).rows,
       customers: (await db.query("SELECT * FROM customers")).rows,
@@ -153,6 +293,82 @@ async function main() {
         peer.packages[0].id === peerPkg.id,
     );
     checks++;
+    const request = (packageIds: string[]) => ({
+      action: "shipping.request",
+      data: {
+        packageIds,
+        destination: "Nassau",
+        service: "air",
+        deliveryMethod: "pickup",
+        note: "Consolidate if available",
+      },
+    });
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerOperation(db, c, request([pkg.id]), randomUUID()),
+        ),
+      409,
+    );
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerOperation(db, c, request([peerPkg.id]), randomUUID()),
+        ),
+      409,
+    );
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerOperation(db, c, request([]), randomUUID()),
+        ),
+      400,
+    );
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerOperation(db, c, request([pkg.id, pkg.id]), randomUUID()),
+        ),
+      400,
+    );
+    await admin.query(
+      "DELETE FROM shipment_packages WHERE organization_id=$1 AND package_id=$2",
+      [org[0], pkg.id],
+    );
+    await admin.query(
+      "UPDATE packages SET status='ready',hold_reason='' WHERE organization_id=$1 AND id=$2",
+      [org[0], pkg.id],
+    );
+    const shippingKey = randomUUID();
+    const shipping = await withCustomer(tokens[0], (db, c) =>
+      customerOperation(db, c, request([pkg.id]), shippingKey),
+    );
+    const replay = await withCustomer(tokens[0], (db, c) =>
+      customerOperation(db, c, request([pkg.id]), shippingKey),
+    );
+    assert.deepEqual(replay, shipping);
+    checks++;
+    const saved = (
+      await admin.query(
+        "SELECT kind,status,payload FROM pilot_records WHERE organization_id=$1 AND id=$2",
+        [org[0], (shipping as { id: string }).id],
+      )
+    ).rows[0];
+    assert.equal(saved.kind, "support");
+    assert.equal(saved.status, "open");
+    assert.deepEqual(saved.payload.packageIds, [pkg.id]);
+    checks++;
+    await admin.query(
+      "UPDATE packages SET hold_reason='Review' WHERE organization_id=$1 AND id=$2",
+      [org[0], pkg.id],
+    );
+    await rejects(
+      () =>
+        withCustomer(tokens[0], (db, c) =>
+          customerOperation(db, c, request([pkg.id]), randomUUID()),
+        ),
+      409,
+    );
     const ctx = await pool().query(
       "SELECT current_setting('app.customer_id',true) AS customer,current_setting('app.actor_type',true) AS actor",
     );
