@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { BillingBreakdown } from "@/components/pilot/BillingBreakdown";
+import { CustomerAssistant } from "@/components/pilot/CustomerAssistant";
 import { CustomerDashboard } from "@/components/pilot/Dashboard";
 import { useEffect, useRef, useState } from "react";
 type Row = {
@@ -58,6 +60,7 @@ export default function Account() {
               "Shipments",
               "Bills",
               ...Object.values(labels),
+              "Assistant",
               "Notifications",
               "Settings",
             ].includes(requested)
@@ -211,6 +214,7 @@ export default function Account() {
                 "Claims",
                 "Shopping requests",
                 "Quotes",
+                "Assistant",
                 "Notifications",
                 "Settings",
               ].map((name) => (
@@ -228,6 +232,7 @@ export default function Account() {
             {tab === "Dashboard" && (
               <CustomerDashboard data={data} open={setTab} />
             )}
+            {tab === "Assistant" && <CustomerAssistant />}
             {tab === "Packages" && (
               <section>
                 <form
@@ -542,6 +547,7 @@ export default function Account() {
                     <p className="mt-2 text-sm">
                       Due {String(b.payload?.dueDate ?? "Contact the team")}
                     </p>
+                    {b.payload && <BillingBreakdown payload={b.payload} />}
                     <Link
                       className="mt-4 inline-block text-teal-700"
                       href={`/pilot/account/bills/${b.id}`}

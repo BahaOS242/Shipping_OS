@@ -1,4 +1,5 @@
 import "server-only";
+import { generateBill, validatePricing } from "./automatic-billing";
 import { randomBytes } from "node:crypto";
 import type { PoolClient } from "pg";
 import { PilotError, hashToken, type Staff } from "./pilot";
@@ -535,6 +536,43 @@ export async function operation(
         ? "Your package is ready for shipping."
         : "We are preparing your package.",
     );
+  } else if (action === "billing.generate") {
+    permit(s, accounting);
+    fields(data, ["shipmentId"]);
+    result = await generateBill(db, tenant, id(data.shipmentId));
+    await audit(db, s, action, "bill", String(result.id));
+  } else if (action === "billing.samples") {
+    permit(s, management);
+    fields(data, []);
+    await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+      tenant + ":sample-rates",
+    ]);
+    for (const service of ["air", "ocean"]) {
+      const exists = await db.query(
+        "SELECT id FROM pilot_records WHERE organization_id=$1 AND kind='rate' AND customer_id IS NULL AND status='active' AND payload->>'destination'='Nassau' AND payload->>'service'=$2 AND payload->>'pricingVersion'='1'",
+        [tenant, service],
+      );
+      if (exists.rowCount) continue;
+      const payload = validatePricing({
+        description: `SAMPLE Nassau ${service} pricing — replace before live use`,
+        destination: "Nassau",
+        service,
+        billingBasis: service === "air" ? "kg" : "cubic_ft",
+        amountCents: service === "air" ? 550 : 800,
+        currency: "BSD",
+        minimumCents: service === "air" ? 1500 : 2000,
+        handlingCents: service === "air" ? 250 : 300,
+        deliveryCents: service === "air" ? 1000 : 1500,
+        dimensionalDivisor: 6000,
+        samplePricing: true,
+      });
+      await db.query(
+        "INSERT INTO pilot_records(organization_id,kind,status,payload) VALUES($1,'rate','active',$2)",
+        [tenant, JSON.stringify(payload)],
+      );
+    }
+    result = { ok: true };
+    await audit(db, s, action, "organization", tenant);
   } else if (action === "shipment.create") {
     permit(s, warehouse);
     fields(data, [
@@ -658,6 +696,17 @@ export async function operation(
       throw new PilotError(409, "Invalid shipment status transition.");
     if (s.role === "driver" && !["arrived", "delivered"].includes(next))
       throw new PilotError(403, "Driver role cannot dispatch shipments.");
+    if (next === "cancelled") {
+      const issued = await db.query(
+        "SELECT id FROM pilot_records WHERE organization_id=$1 AND kind='bill' AND status='issued' AND payload->>'source'='automatic' AND payload->>'shipmentId'=$2",
+        [tenant, sh.id],
+      );
+      if (issued.rowCount)
+        throw new PilotError(
+          409,
+          "Reconcile and void the issued shipment bill before cancelling this shipment.",
+        );
+    }
     const packages = (
       await db.query(
         "SELECT p.* FROM packages p JOIN shipment_packages sp ON sp.organization_id=p.organization_id AND sp.package_id=p.id WHERE sp.organization_id=$1 AND sp.shipment_id=$2 ORDER BY p.id FOR UPDATE OF p",
@@ -681,6 +730,18 @@ export async function operation(
         [tenant, sh.id, next, driver, receivedBy],
       )
     ).rows[0];
+    if (next === "ready") {
+      const bill = await generateBill(db, tenant, sh.id);
+      await audit(db, s, "billing.draft_generated", "bill", bill.id, {
+        shipmentId: sh.id,
+      });
+    }
+    if (next === "cancelled") {
+      await db.query(
+        "UPDATE pilot_records SET status='void',version=version+1,updated_at=now() WHERE organization_id=$1 AND kind='bill' AND status='draft' AND payload->>'source'='automatic' AND payload->>'shipmentId'=$2",
+        [tenant, sh.id],
+      );
+    }
     if (next === "cancelled")
       await db.query(
         "DELETE FROM shipment_packages WHERE organization_id=$1 AND shipment_id=$2",
@@ -729,6 +790,11 @@ export async function operation(
           : STAFF_ROLES,
     );
     const customer = data.customerId === null ? null : id(data.customerId);
+    if (kind === "rate" && payload.pricingVersion === 1 && customer)
+      throw new PilotError(
+        400,
+        "Automatic pricing must be an organization-wide rate.",
+      );
     if (!customer && !["rate", "voyage"].includes(kind))
       throw new PilotError(400, "Choose a customer.");
     if (customer) {
@@ -814,7 +880,7 @@ export async function operation(
       "Review the price and terms in your customer account before accepting.",
     );
   } else if (action === "record.update") {
-    fields(data, ["status", "note"]);
+    fields(data, ["status", "note", "samplePricingConfirmed"]);
     const r = await locked(
         db,
         tenant,
@@ -866,6 +932,22 @@ export async function operation(
     );
     if (!transitions[r.kind]?.[r.status]?.includes(next))
       throw new PilotError(409, "Invalid record status transition.");
+    if (r.kind === "bill" && next === "issued") {
+      if (
+        r.payload.pricingPending ||
+        !Number.isSafeInteger(r.payload.amountCents) ||
+        r.payload.amountCents <= 0
+      )
+        throw new PilotError(
+          409,
+          "Configure pricing and calculate this draft before issuing.",
+        );
+      if (r.payload.samplePricing && data.samplePricingConfirmed !== true)
+        throw new PilotError(
+          409,
+          "This bill uses sample pricing. Explicitly confirm it is for preview use before issuing.",
+        );
+    }
     if (r.kind === "bill" && next === "void") {
       const payments = await db.query(
         "SELECT id FROM pilot_records WHERE organization_id=$1 AND kind='payment' AND status='recorded' AND payload->>'billId'=$2",
@@ -1008,7 +1090,21 @@ export function validateRecord(
     };
   }
   if (kind === "rate") {
-    fields(p, ["description", "amountCents", "currency"]);
+    fields(p, [
+      "description",
+      "amountCents",
+      "currency",
+      "destination",
+      "service",
+      "billingBasis",
+      "minimumCents",
+      "handlingCents",
+      "deliveryCents",
+      "dimensionalDivisor",
+      "samplePricing",
+    ]);
+    if (p.destination !== undefined)
+      return validatePricing(p) as unknown as Record<string, unknown>;
     return {
       description: text(p.description, 500, true),
       amountCents: integer(p.amountCents, 1),

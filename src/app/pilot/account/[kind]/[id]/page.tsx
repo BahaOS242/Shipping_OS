@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BillingBreakdown } from "@/components/pilot/BillingBreakdown";
 import { notFound, redirect } from "next/navigation";
 import { customerDetail } from "@/server/customer-detail";
 import { withCustomer } from "@/server/customer-tracking";
@@ -111,6 +112,7 @@ export default async function Detail({
             </div>
           ))}
         </dl>
+        {bill && <BillingBreakdown payload={payload} />}
         {bill && (
           <div className="mt-6">
             <p>

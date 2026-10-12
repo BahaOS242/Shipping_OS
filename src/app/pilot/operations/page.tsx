@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { BillingBreakdown } from "@/components/pilot/BillingBreakdown";
 import { PilotStat } from "@/components/pilot/Dashboard";
 import { useEffect, useRef, useState } from "react";
 type Row = {
@@ -250,7 +251,7 @@ export default function Operations() {
       fields.push(
         {
           name: "amountCents",
-          label: "Amount",
+          label: kind === "rate" ? "Price per billing unit" : "Amount",
           type: "number",
           required: true,
         },
@@ -260,6 +261,60 @@ export default function Operations() {
           type: "select",
           options: ["USD", "BSD"].map(option),
           value: "USD",
+        },
+      );
+    if (kind === "rate")
+      fields.push(
+        { name: "destination", label: "Route destination", required: true },
+        {
+          name: "service",
+          label: "Shipping service",
+          type: "select",
+          options: ["air", "ocean"].map(option),
+          value: "air",
+        },
+        {
+          name: "billingBasis",
+          label: "Charge by",
+          type: "select",
+          options: [
+            { value: "kg", label: "Billable kilograms" },
+            { value: "cubic_ft", label: "Cubic feet" },
+          ],
+          value: "kg",
+        },
+        {
+          name: "dimensionalDivisor",
+          label: "Dimensional divisor (cm³ per kg)",
+          type: "number",
+          value: 6000,
+          required: true,
+        },
+        {
+          name: "minimumCents",
+          label: "Minimum freight charge",
+          type: "number",
+          value: 0,
+          required: true,
+        },
+        {
+          name: "handlingCents",
+          label: "Handling fee per package",
+          type: "number",
+          value: 0,
+          required: true,
+        },
+        {
+          name: "deliveryCents",
+          label: "Delivery fee per shipment",
+          type: "number",
+          value: 0,
+          required: true,
+        },
+        {
+          name: "samplePricing",
+          label: "Sample pricing for preview only",
+          type: "checkbox",
         },
       );
     if (kind === "bill")
@@ -299,7 +354,9 @@ export default function Operations() {
     open({
       title: "Create " + (recordLabels[kind] ?? kind),
       action: "record.create",
-      fields,
+      fields: fields.filter(
+        (f) => !(["rate", "voyage"].includes(kind) && f.name === "customerId"),
+      ),
     });
   }
   const button =
@@ -1339,6 +1396,57 @@ export default function Operations() {
             ].includes(tab) && (
               <section>
                 <div className="mb-5 flex flex-wrap gap-2">
+                  {tab === "Rates" && allowed(managers) && (
+                    <button
+                      className={button}
+                      disabled={busy}
+                      onClick={() =>
+                        open({
+                          title: "Add sample Nassau rates (preview only)",
+                          action: "billing.samples",
+                          fields: [],
+                        })
+                      }
+                    >
+                      Add sample Nassau rates
+                    </button>
+                  )}
+                  {tab === "Billing" && allowed(accounting) && (
+                    <button
+                      className={button}
+                      disabled={busy}
+                      onClick={() =>
+                        open({
+                          title: "Calculate automatic draft",
+                          action: "billing.generate",
+                          fields: [
+                            {
+                              name: "shipmentId",
+                              label: "Ready shipment",
+                              type: "select",
+                              required: true,
+                              options: data.shipments
+                                .filter((sh) =>
+                                  [
+                                    "ready",
+                                    "in_transit",
+                                    "arrived",
+                                    "delivered",
+                                  ].includes(sh.status ?? ""),
+                                )
+                                .map((sh) => ({
+                                  value: sh.id,
+                                  label: `${sh.destination} · ${sh.service} · ${sh.id.slice(0, 8)}`,
+                                })),
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      Calculate draft for shipment
+                    </button>
+                  )}
+
                   {Object.entries(recordLabels)
                     .filter(([kind, label]) =>
                       tab === "Billing"
@@ -1368,9 +1476,10 @@ export default function Operations() {
                     ))}
                   {tab === "Billing" && (
                     <p className="w-full text-sm text-slate-600">
-                      Amounts are staff-entered. Payments/refunds record
-                      transactions completed externally; this screen does not
-                      move funds.
+                      Automatic drafts are calculated when shipments become
+                      ready. Review sample pricing and excluded customs charges
+                      before issue. Payments/refunds record transactions
+                      completed externally; this screen does not move funds.
                     </p>
                   )}
                 </div>
@@ -1406,6 +1515,9 @@ export default function Operations() {
                         <p className="mt-2 break-all text-xs text-slate-400">
                           {r.id}
                         </p>
+                        {r.kind === "bill" && r.payload && (
+                          <BillingBreakdown payload={r.payload} />
+                        )}
                         {Array.isArray(r.payload?.updates) &&
                           (
                             r.payload.updates as {
@@ -1490,6 +1602,17 @@ export default function Operations() {
                                       type: "textarea",
                                       required: true,
                                     },
+                                    ...(r.kind === "bill" &&
+                                    r.payload?.samplePricing
+                                      ? [
+                                          {
+                                            name: "samplePricingConfirmed",
+                                            label:
+                                              "I confirm this sample-price bill is for preview use only",
+                                            type: "checkbox" as const,
+                                          },
+                                        ]
+                                      : []),
                                   ],
                                 })
                               }

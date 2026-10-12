@@ -21,7 +21,8 @@
     "test:customers:http": "tsx tests/pilot-customers-http.ts",
     "notifications:deliver": "tsx scripts/deliver-notifications.ts",
     "test:operations": "NODE_OPTIONS=--conditions=react-server tsx tests/operations.ts",
-    "test:operations:http": "tsx tests/operations-http.ts"
+    "test:operations:http": "tsx tests/operations-http.ts",
+    "test:billing": "NODE_OPTIONS=--conditions=react-server tsx tests/automatic-billing.ts"
   },
   "dependencies": {
     "next": "^16.4.0",
