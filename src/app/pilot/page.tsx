@@ -1,5 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  CustomerPicker,
+  type CustomerOption,
+} from "@/components/pilot/CustomerPicker";
 type Inventory = {
   organization: string;
   customers: { id: string; display_name: string }[];
@@ -13,6 +18,7 @@ type Inventory = {
 };
 export default function Pilot() {
   const [data, setData] = useState<Inventory | null>(null);
+  const [customer, setCustomer] = useState<CustomerOption | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
@@ -101,6 +107,7 @@ export default function Pilot() {
       );
       form.reset();
       request.current = null;
+      setCustomer(null);
       await load();
     } catch (error) {
       setMessage(
@@ -132,7 +139,7 @@ export default function Pilot() {
           {data && (
             <button
               disabled={busy}
-              className="rounded-lg border p-3"
+              className="shrink-0 whitespace-nowrap rounded-lg border p-3"
               onClick={async () => {
                 setBusy(true);
                 try {
@@ -141,6 +148,7 @@ export default function Pilot() {
                   });
                   if (!r.ok) throw new Error("Unable to sign out.");
                   setData(null);
+                  setCustomer(null);
                 } catch (e) {
                   setMessage((e as Error).message);
                 } finally {
@@ -193,29 +201,17 @@ export default function Pilot() {
           <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
             <form onSubmit={intake} className="rounded-2xl border bg-white p-6">
               <h2 className="mb-5 text-xl font-semibold">Receive a package</h2>
-              <label>
-                Customer
-                <select
-                  className={input}
-                  name="customerId"
-                  required
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    Choose a customer
-                  </option>
-                  {data.customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.display_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {!data.customers.length && (
-                <p className="mt-3 text-sm">
-                  Your administrator must add a customer before intake.
-                </p>
-              )}
+              <CustomerPicker
+                initialCustomers={data.customers}
+                value={customer}
+                onChange={setCustomer}
+              />
+              <Link
+                href="/pilot/customers"
+                className="mt-3 block text-sm font-semibold text-teal-700"
+              >
+                Add or manage customers →
+              </Link>
               <label className="mt-5 block">
                 Tracking number
                 <input
@@ -249,7 +245,7 @@ export default function Pilot() {
                 ))}
               </div>
               <button
-                disabled={busy || !data.customers.length}
+                disabled={busy || !customer}
                 className="mt-6 w-full rounded-lg bg-teal-700 p-3 font-semibold text-white disabled:opacity-50"
               >
                 {busy ? "Saving…" : "Confirm receipt"}

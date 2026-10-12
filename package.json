@@ -16,7 +16,9 @@
     "test:pilot:http": "tsx tests/pilot-http.ts",
     "pilot:customer": "tsx scripts/provision-customer.ts",
     "test:tracking": "NODE_OPTIONS=--conditions=react-server tsx tests/customer-tracking.ts",
-    "test:tracking:http": "tsx tests/customer-tracking-http.ts"
+    "test:tracking:http": "tsx tests/customer-tracking-http.ts",
+    "test:customers": "NODE_OPTIONS=--conditions=react-server tsx tests/pilot-customers.ts",
+    "test:customers:http": "tsx tests/pilot-customers-http.ts"
   },
   "dependencies": {
     "next": "^16.4.0",

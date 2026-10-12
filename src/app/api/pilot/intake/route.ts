@@ -13,7 +13,7 @@ export async function GET() {
       organization: staff.name,
       customers: (
         await db.query(
-          "SELECT id,display_name FROM customers WHERE organization_id=$1 ORDER BY display_name LIMIT 500",
+          "SELECT id,display_name,email,phone FROM customers WHERE organization_id=$1 ORDER BY lower(display_name),id LIMIT 25",
           [staff.organization_id],
         )
       ).rows,

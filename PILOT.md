@@ -32,8 +32,8 @@ role. For hosted PostgreSQL use certificate-verified TLS, e.g. sslmode=verify-fu
 and your provider's CA configuration. Production requires HTTPS for the secure
 HttpOnly cookie. Keep administrator credentials out of the application environment.
 
-An administrator must create the PCL Imports organization, real customer records,
-and staff memberships. No demo customers are copied into the pilot:
+An administrator must create the PCL Imports organization and staff memberships.
+Staff can add real customers at `/pilot/customers` after sign-in. No demo customers are copied into the pilot:
 
 ```sql
 INSERT INTO organizations(name,slug,organization_type)
@@ -70,9 +70,30 @@ a new duplicate submission is rejected. No notification is sent.
 
 RLS applies to customers, packages, events, audit and retry records; tenant and
 user context is transaction-local. Other production tables remain deny-by-default.
-The runtime role has no customer/session provisioning privileges and no event
-update/delete privileges. `GET /api/pilot/intake` returns up to 500 customers and
-50 recent packages; search/pagination will be needed for larger pilots.
+The runtime role can create customers through staff-only row policies. Session
+provisioning remains administrator-only; event update/delete privileges remain
+unavailable. `GET /api/pilot/intake` returns the first 25 customers and 50 recent
+packages. The intake customer picker searches the entire tenant directory.
+
+## Staff customer directory
+
+Staff can add customers at `/pilot/customers`, search by name/email/phone, and
+load further pages of 25 records. Intake includes the same search, so customers
+outside the initial list remain selectable. Create requires a name; email and
+phone are optional. Phone numbers use international format, e.g. +12425550123.
+No customer invitation or message is sent. A customer record does not create a
+login credential; private customer access codes still use administrator provisioning.
+
+Customer creation saves an audit event and idempotency result in the same
+transaction. Retrying unchanged details in the same open form returns one record.
+Search before creating a customer: intentional new submissions may share a name
+or contact details (for example family members). Reload after a lost response and
+search for the customer before creating another record. Editing, deleting, merging
+and bulk importing customers are not yet implemented.
+
+Search is tenant-scoped and treats `%`, `_` and backslash as literal characters.
+Pagination uses a name/UUID cursor, avoiding an initial-list size limit. Customer
+sessions cannot read the directory or create customer records.
 
 ## Customer tracking
 
@@ -112,6 +133,8 @@ PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='po
 PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:pilot:http
 PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='postgresql://…' npm run test:tracking
 PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:tracking:http
+PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='postgresql://…' npm run test:customers
+PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:customers:http
 ```
 
 Tests create fixtures in the disposable database. Never supply a real database.
@@ -121,7 +144,7 @@ concurrent requests, replay and rollback. HTTP tests check cookie security,
 origin enforcement, login, receiving, inventory and sign-out revocation.
 
 Still outside this slice: self-service customer signup/account recovery, staff SSO/MFA,
-customer administration/import UI, package photos, labels, receiving exceptions,
+customer editing/merging/import, package photos, labels, receiving exceptions,
 notifications/outbox delivery, billing/customs/delivery persistence, production
 hosting and backup/restore validation. Existing demo APIs remain simulated and
 must not be presented as production integrations.
