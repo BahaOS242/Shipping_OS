@@ -1,0 +1,316 @@
+.island-login {
+  min-height: 100vh;
+  background: #eaf4f1;
+  color: #173d3b;
+  padding: 32px 40px;
+  font-family: var(--font-sans), Arial, sans-serif;
+}
+.island-login * {
+  box-sizing: border-box;
+}
+.island-container {
+  max-width: 1200px;
+  margin: auto;
+}
+.island-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.island-brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  text-decoration: none;
+  color: #195c57;
+}
+.island-monogram {
+  height: 48px;
+  width: 48px;
+  border: 1px solid #6f9990;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  letter-spacing: 1.3px;
+  font-weight: 600;
+}
+.island-help {
+  font-size: 14px;
+  color: #285b54;
+  text-underline-offset: 5px;
+  text-decoration: underline;
+}
+.island-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 72px;
+  align-items: center;
+  padding: 56px 0 42px;
+}
+.island-intro {
+  padding: 0 18px 0 12px;
+}
+.island-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2.8px;
+  font-weight: 700;
+}
+.island-intro h1 {
+  font-size: clamp(38px, 4.7vw, 62px);
+  font-weight: 800;
+  letter-spacing: -2.7px;
+  line-height: 1.06;
+  margin: 28px 0 24px;
+}
+.island-intro h1 span {
+  color: #12826e;
+}
+.island-description {
+  max-width: 410px;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #52716a;
+}
+.island-card {
+  background: #fff;
+  border: 1px solid #dfece5;
+  padding: 40px;
+  border-radius: 28px;
+  box-shadow: 0 22px 60px #275e4d0d;
+  min-width: 0;
+}
+.island-card h2 {
+  font-size: 29px;
+  letter-spacing: -1.2px;
+  font-weight: 750;
+  line-height: 1.2;
+  margin: 12px 0;
+}
+.island-card-description {
+  font-size: 14px;
+  color: #647770;
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+.island-form label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #274a42;
+}
+.island-form input {
+  background: #f7faf8;
+  border: 1px solid #dbe5df;
+  border-radius: 12px;
+  font-size: 16px;
+  padding: 15px;
+  color: #23483f;
+}
+.island-company {
+  font-size: 12px;
+  color: #61756c;
+  border-bottom: 1px solid #e9eee9;
+  padding-bottom: 15px;
+  margin-bottom: 22px;
+}
+.island-company summary {
+  cursor: pointer;
+}
+.island-password {
+  position: relative;
+}
+.island-password input {
+  padding-right: 70px;
+}
+.island-password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 16px;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #476358;
+  background: transparent;
+  border: none;
+}
+.island-recovery {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: #24715f;
+  margin-top: 12px;
+  text-underline-offset: 4px;
+}
+.island-submit {
+  margin-top: 23px;
+  width: 100%;
+  padding: 17px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: #087b68;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.15s;
+}
+.island-submit:hover {
+  background: #086b5b;
+}
+.island-submit:disabled {
+  opacity: 0.6;
+}
+.island-card-footer {
+  margin-top: 27px;
+  padding-top: 24px;
+  border-top: 1px solid #e5ece6;
+}
+.island-switch {
+  font-size: 14px;
+  color: #18715d;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 600;
+}
+.island-recovery-note {
+  font-size: 12px;
+  color: #6b7b72;
+  line-height: 1.7;
+  margin-top: 17px;
+}
+.island-code-link {
+  display: block;
+  margin-top: 15px;
+  font-size: 12px;
+  color: #24725e;
+}
+.island-illustration {
+  height: 220px;
+  margin: 35px 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.island-orbit {
+  width: 310px;
+  height: 175px;
+  border: 1px solid #a9cdc1;
+  border-radius: 50%;
+  position: absolute;
+  transform: rotate(-20deg);
+}
+.island-orbit-second {
+  transform: rotate(20deg);
+}
+.island-parcel {
+  width: 115px;
+  height: 110px;
+  background: #c5a073;
+  border-radius: 6px;
+  transform: rotate(-10deg);
+  position: relative;
+  box-shadow: 17px 18px 0 #bfddd1;
+}
+.island-parcel:before {
+  content: "";
+  position: absolute;
+  left: 46px;
+  width: 23px;
+  height: 100%;
+  background: #e6c99c;
+}
+.island-parcel:after {
+  content: "PCL";
+  position: absolute;
+  left: 15px;
+  top: 46px;
+  padding: 13px;
+  background: #fff8e8;
+  color: #326054;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+.island-benefits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  font-size: 12px;
+  color: #407e6a;
+}
+.island-benefits span:before {
+  content: "✓";
+  margin-right: 7px;
+}
+.island-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  color: #6e8378;
+  font-size: 12px;
+  padding-top: 16px;
+  padding-bottom: 12px;
+}
+.island-login :focus-visible {
+  outline: 3px solid #e5b544;
+  outline-offset: 4px;
+}
+@media (max-width: 760px) {
+  .island-login {
+    padding: 23px 20px;
+  }
+  .island-brand {
+    font-size: 19px;
+  }
+  .island-monogram {
+    width: 40px;
+    height: 40px;
+    font-size: 11px;
+  }
+  .island-help {
+    font-size: 12px;
+  }
+  .island-grid {
+    grid-template-columns: 1fr;
+    gap: 27px;
+    padding-top: 36px;
+  }
+  .island-intro {
+    padding: 0;
+  }
+  .island-intro h1 {
+    font-size: 42px;
+    letter-spacing: -1.8px;
+    margin: 18px 0;
+  }
+  .island-description {
+    font-size: 14px;
+  }
+  .island-illustration {
+    display: none;
+  }
+  .island-benefits {
+    margin-top: 20px;
+  }
+  .island-card {
+    padding: 27px 24px;
+    border-radius: 24px;
+  }
+  .island-card h2 {
+    font-size: 26px;
+  }
+  .island-footer {
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .island-submit {
+    transition: none;
+  }
+}

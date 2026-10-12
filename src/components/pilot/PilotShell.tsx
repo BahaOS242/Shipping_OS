@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 import { LogoMark } from "@/components/ui/Logo";
 export function PilotShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  if (path.startsWith("/pilot/label/")) return <>{children}</>;
+  if (path.startsWith("/pilot/label/") || path === "/pilot/sign-in")
+    return <>{children}</>;
   const customer = ["/pilot/account", "/pilot/tracking", "/pilot/sign-in"].some(
     (p) => path === p || path.startsWith(p + "/"),
   );
