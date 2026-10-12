@@ -124,6 +124,12 @@ export default function Pilot() {
   return (
     <main className="min-h-screen bg-slate-50 px-5 py-10 text-slate-900">
       <div className="mx-auto max-w-5xl">
+        <Link
+          href="/pilot/operations"
+          className="mb-5 block font-semibold text-teal-700"
+        >
+          Open full operations workspace →
+        </Link>
         <header className="mb-8 flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-teal-700">

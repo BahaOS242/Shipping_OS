@@ -1,24 +1,30 @@
-# PCL Imports intake pilot
+# PCL Imports operational pilot
 
-The production slice is `/pilot`. Existing routes remain a simulated demo.
-The pilot uses PostgreSQL directly from the server and never trusts the demo
-role switcher, a user ID header, or a tenant ID supplied by the browser.
+The PostgreSQL pilot lives under `/pilot`. Existing demo pages and demo APIs remain simulated. Do not use the demo role switcher, AI tools or WhatsApp demo to operate pilot records.
 
-## Local or staging setup
+## What works
 
-Use Node 22+ and a **dedicated** PostgreSQL 16+ database. Run `npm ci`.
-Supply an administrator connection only to `npm run db:migrate`:
+- `/pilot`: receive pre-alerted or new packages, persistent measurements, customer search and duplicate protection.
+- `/pilot/operations`: inventory/bin/detail updates, damage review and holds, preparation, shipments by customer/route, document-based customs clearance, dispatch/arrival/delivery with recipient confirmation, manifests and inventory exports.
+- Customer directory: create/search, edit, archive, merge, issue/revoke private access codes. Merge moves operational records and revokes the source customer's access. Keep audit records instead of destructive deletion.
+- Billing: draft/issue/void bills, record confirmed external cash/bank/card payments, outstanding balances, external refund records and CSV export. No funds are moved by the application.
+- Documents: authenticated PNG/JPEG/PDF uploads up to 5 MB, package/receipt association and review. Customs clearance requires a verified purchase record with an attached original for every shipment package. Files are stored in PostgreSQL and downloaded as attachments; no OCR or malware scanning is implemented.
+- Service queues: customer/staff support and claims, customer replies, staff resolutions, exceptions, purchase requests and quotes. Managers price offers; customers accept or decline prices and terms before purchasing progresses. Rates and voyages have manual lifecycle management; rates are a catalog, not an automatic freight or duty calculation engine.
+- `/pilot/account`: own packages/pre-alerts, shipments, bills/payments, documents, service/purchase/quote requests, offer acceptance, notifications and email preferences.
+- `/pilot/sign-in`: customer registration request, manual identity verification/approval, password login. Customers with a privately provisioned access code can establish/change a password from Settings. Password changes revoke other sessions. Recovery requires staff verification and a replacement private code; there is no email reset flow.
+- QR package labels, role-checked exports, managerial audit history, notification delivery queue and manual retries.
+
+## Setup
+
+Use Node 22+ and a dedicated PostgreSQL 16+ database. Install locked dependencies with `npm ci`. Supply an administrator connection only to migration/provision commands:
 
 ```
 ADMIN_DATABASE_URL='postgresql://…' npm run db:migrate
 ```
 
-The runner applies ordered migrations atomically, stores checksums and rejects
-changes to previously applied migrations. If 0001/0002 were applied manually,
-review their installed definitions and register their actual source checksums
-in `schema_migrations` before using the runner. Do not rerun them against populated
-tables. The migration creates a shared NOLOGIN role `shipping_os_app`.
-Create a separate runtime login with a strong password:
+Migrations 0001–0012 apply in order, atomically per file, with source checksums. Do not edit applied migrations or rerun manual table creation against populated tables. If 0001/0002 were applied manually, compare installed definitions and register their actual checksums before using the runner.
+
+Create a restricted application login:
 
 ```sql
 CREATE ROLE shipping_os_runtime LOGIN NOSUPERUSER NOBYPASSRLS
@@ -26,98 +32,54 @@ CREATE ROLE shipping_os_runtime LOGIN NOSUPERUSER NOBYPASSRLS
 GRANT shipping_os_app TO shipping_os_runtime;
 ```
 
-Configure `DATABASE_URL` and `PILOT_ORIGIN` using `.env.local` (see `.env.example`).
-Never run the application as a superuser, migration administrator, or BYPASSRLS
-role. For hosted PostgreSQL use certificate-verified TLS, e.g. sslmode=verify-full,
-and your provider's CA configuration. Production requires HTTPS for the secure
-HttpOnly cookie. Keep administrator credentials out of the application environment.
+Set `DATABASE_URL` and exact `PILOT_ORIGIN` in `.env.local`. Keep administrator and worker credentials outside the web application environment. Hosted PostgreSQL needs certificate-verified TLS (`sslmode=verify-full` and the provider's CA configuration). Production cookies require HTTPS. The server rejects superuser/BYPASSRLS database credentials.
 
-An administrator must create the PCL Imports organization and staff memberships.
-Staff can add real customers at `/pilot/customers` after sign-in. No demo customers are copied into the pilot:
+Create the real organization and initial staff through an administrator connection:
 
 ```sql
 INSERT INTO organizations(name,slug,organization_type)
  VALUES ('PCL Imports','pcl-imports','freight_forwarder') RETURNING id;
--- Use the returned UUID below:
 INSERT INTO organization_members(organization_id,user_id,role)
- VALUES ('organization-uuid','warehouse-staff-id','warehouse');
-INSERT INTO customers(organization_id,display_name)
- VALUES ('organization-uuid','Customer name') RETURNING id;
+ VALUES ('returned-organization-uuid','staff-identity','owner');
 ```
 
-Issue an eight-hour private access code for an existing staff member:
+Membership roles are owner, admin, manager, warehouse, customs, accounting, support and driver. Initial staff provisioning and later membership changes use an administrator connection; no staff SSO/MFA or team-management UI exists yet.
 
 ```
-ADMIN_DATABASE_URL='postgresql://…' npm run pilot:staff -- organization-uuid warehouse-staff-id
+ADMIN_DATABASE_URL='postgresql://…' npm run pilot:staff -- organization-uuid staff-identity
 ```
 
-Share the code securely, then sign in at `/pilot`. Codes are random 256-bit bearer
-credentials, stored only as SHA-256 hashes. Sign out revokes the server session.
-An administrator can also revoke a session by deleting its `staff_sessions` row.
-Membership removal or role changes take effect on the next request. This is
-controlled staff provisioning for a pilot; it is not a full SSO/account platform.
-
-## Receiving
-
-Select a tenant customer, scan/type a tracking number, and enter positive kg/cm
-measurements. The server normalizes tracking to uppercase. Receipt saves package,
-package event, staff audit and idempotency result in one transaction. Existing
-expected packages are received in place; duplicates and mismatched customer
-assignments return a conflict. Concurrent retries with the same request key return
-one saved result. A lost response can be retried with unchanged details in the
-same open form. After a page reload, inventory reveals any completed receipt;
-a new duplicate submission is rejected. No notification is sent.
-
-RLS applies to customers, packages, events, audit and retry records; tenant and
-user context is transaction-local. Other production tables remain deny-by-default.
-The runtime role can create customers through staff-only row policies. Session
-provisioning remains administrator-only; event update/delete privileges remain
-unavailable. `GET /api/pilot/intake` returns the first 25 customers and 50 recent
-packages. The intake customer picker searches the entire tenant directory.
-
-## Staff customer directory
-
-Staff can add customers at `/pilot/customers`, search by name/email/phone, and
-load further pages of 25 records. Intake includes the same search, so customers
-outside the initial list remain selectable. Create requires a name; email and
-phone are optional. Phone numbers use international format, e.g. +12425550123.
-No customer invitation or message is sent. A customer record does not create a
-login credential; private customer access codes still use administrator provisioning.
-
-Customer creation saves an audit event and idempotency result in the same
-transaction. Retrying unchanged details in the same open form returns one record.
-Search before creating a customer: intentional new submissions may share a name
-or contact details (for example family members). Reload after a lost response and
-search for the customer before creating another record. Editing, deleting, merging
-and bulk importing customers are not yet implemented.
-
-Search is tenant-scoped and treats `%`, `_` and backslash as literal characters.
-Pagination uses a name/UUID cursor, avoiding an initial-list size limit. Customer
-sessions cannot read the directory or create customer records.
-
-## Customer tracking
-
-`/pilot/tracking` shows each customer's own packages and receipt history from
-PostgreSQL. Issue an eight-hour private code for an existing customer:
+The command prints a private eight-hour access code once. Share it privately, sign in at `/pilot/operations`, and create customers through the directory. Managers/support staff can issue customer codes from the Customers module. An administrator can also provision one:
 
 ```
 ADMIN_DATABASE_URL='postgresql://…' npm run pilot:customer -- organization-uuid customer-uuid
 ```
 
-Share the code securely with that customer. Customer and warehouse sessions use
-separate cookies and session tables. Customer queries enforce both organization
-and customer scope; database row policies permit reads of that customer's profile,
-packages and package events only. Customers cannot mutate packages, read staff
-identities/audit details, or access warehouse intake. Sign-out revokes the code;
-expiry or administrator deletion also ends access. Customer lists show the 50
-latest packages and package details show up to 100 latest history entries.
+Codes are 256-bit bearer credentials, stored only as SHA-256 hashes. Never put them in URLs or public messages. Staff/customer cookies and session tables are separate. Sign-out, expiry and revocation end access. Membership changes take effect on the next request. Customer registration must be approved only after an actual identity check, especially when matching an existing customer. Email/contact values are not automatically verified.
 
-This is controlled customer access for the pilot. Self-service signup, password
-login, email verification, account recovery and an invitation delivery service
-remain unimplemented. Private codes are bearer credentials; do not send them in
-URL parameters or public channels. Changing warehouse or customer mappings must
-be handled by an administrator. Apply migration 0004 with the corresponding
-server update; it requires an explicit staff/customer transaction context.
+## Security and concurrency
+
+The server derives organization, identity and customer from verified sessions. Database row policies enforce tenant and customer boundaries; context is transaction-local. Role checks govern actions and exports. Staff may read tenant operational records, including financial records in the workspace response; this is tenant isolation, not fine-grained departmental confidentiality. Configure narrower read policies before a deployment requiring that separation.
+
+Mutating JSON operations require exact configured Origin and bounded request bodies. Idempotency keys protect retries; changes, audit/events and results commit together. Customer offers lock records and preserve price/terms. Financial amounts use integer cents internally and decimal money in the UI. Payments serialize on bills and reject overpayment or duplicate references. UI edits submit versions to detect stale records. Private codes are returned once and excluded from persisted retry results; if a response is lost, issue a replacement.
+
+Workspace lists show latest 100 packages/shipments/customers, 300 staff records and 200 files; customer lists are also bounded. Search covers the tenant package/customer directory. CSV exports cover all matching inventory, manifests, billing or audit rows. Operational queue pagination and large-file/object-storage capacity are future work.
+
+## Notifications
+
+Package receipt/status, shipments, records and payments create customer in-app updates. Email is queued only when the customer has an email and opts in. Opt-out, contact changes, archive and merge cancel pending/failed messages; delivery already in progress may finish.
+
+Create a separate worker login inheriting the migration-created `shipping_os_worker` NOLOGIN role:
+
+```sql
+CREATE ROLE shipping_os_delivery LOGIN NOSUPERUSER NOBYPASSRLS
+ PASSWORD 'replace-with-a-private-generated-password';
+GRANT shipping_os_worker TO shipping_os_delivery;
+```
+
+Set worker-only `WORKER_DATABASE_URL`, `SMTP_HOST`, `SMTP_PORT` (465 or 587), `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. Set `EMAIL_DELIVERY_ENABLED=true` only after configuring a real sender and reviewing the queue. Then run `npm run notifications:deliver` in a worker environment. The command processes one batch of up to ten emails concurrently; production scheduling and monitoring remain to be configured. It does not run automatically in Next.js.
+
+SMTP uses verified TLS, bounded timeouts, plain text and no file/URL attachment access. The worker claims rows with SKIP LOCKED, retries with backoff, leases abandoned work for five minutes and stops after eight attempts. Managers can retry failed jobs after checking the provider. SMTP is at-least-once: a crash after acceptance can cause duplicates; deterministic Message-ID is not a provider delivery guarantee. Mock worker tests send no external email. Live SMTP delivery has not been verified. See [Nodemailer SMTP documentation](https://nodemailer.com/smtp).
 
 ## Verification
 
@@ -127,24 +89,14 @@ npm run lint
 npm test
 npm run smoke
 npm run build
-# Migrate a disposable database, connect as a restricted application login:
-PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='postgresql://…' npm run test:pilot
-# With a running server connected to that same disposable database:
-PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:pilot:http
-PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='postgresql://…' npm run test:tracking
-PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:tracking:http
-PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='postgresql://…' npm run test:customers
-PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:customers:http
 ```
 
-Tests create fixtures in the disposable database. Never supply a real database.
-The PostgreSQL suite checks RLS isolation, forbidden roles, expiry/revocation,
-atomic receipt history, duplicate conflicts, tenant-local tracking uniqueness,
-concurrent requests, replay and rollback. HTTP tests check cookie security,
-origin enforcement, login, receiving, inventory and sign-out revocation.
+Against a freshly migrated disposable database, export `PILOT_TEST_DISPOSABLE=yes`, `ADMIN_DATABASE_URL` and restricted `DATABASE_URL`. Run `test:pilot`, `test:tracking`, `test:customers`, and `test:operations`. The operations test additionally requires a restricted `WORKER_DATABASE_URL`. It cancels other due notification fixtures before testing mocked global worker claims; never point this test at real data.
 
-Still outside this slice: self-service customer signup/account recovery, staff SSO/MFA,
-customer editing/merging/import, package photos, labels, receiving exceptions,
-notifications/outbox delivery, billing/customs/delivery persistence, production
-hosting and backup/restore validation. Existing demo APIs remain simulated and
-must not be presented as production integrations.
+With a production-built local server connected to the same disposable database, set `PILOT_TEST_ORIGIN` to its origin and run `test:pilot:http`, `test:tracking:http`, `test:customers:http`, and `test:operations:http`. Tests create fictional records. They require real PostgreSQL rather than an in-memory substitute.
+
+## Remaining production work
+
+Live payment checkout/webhooks/reconciliation, WhatsApp delivery and inbound conversations, carrier tracking, automated OCR/AI invoice extraction, staff SSO/MFA, email verification/self-service reset, staff administration UI, customer bulk import, automatic tariffs/duties/storage fees, delivery signature/photo proof, analytics across date ranges, long-term document storage/scanning, production hosting/worker scheduler, backup/restore validation, operational monitoring and load testing are not complete. Customer receipt review and customs clearance are operational records, not government customs submissions.
+
+Provide real database and deployment access, verified PCL staff identities, approved rates/fees/customs rules, payment/carrier/AI/messaging provider decisions and credentials before connecting these services. Do not merge or deploy solely because the local tests pass.

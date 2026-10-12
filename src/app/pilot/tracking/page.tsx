@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 type Package = {
   id: string;
@@ -120,6 +121,12 @@ export default function CustomerTracking() {
   return (
     <main className="min-h-screen bg-slate-50 px-5 py-10 text-slate-900">
       <div className="mx-auto max-w-3xl">
+        <Link
+          href="/pilot/account"
+          className="mb-5 block font-semibold text-teal-700"
+        >
+          Account, documents and support →
+        </Link>
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-teal-700">
@@ -167,6 +174,9 @@ export default function CustomerTracking() {
             className="max-w-md rounded-2xl border bg-white p-6"
           >
             <h2 className="text-xl font-semibold">Private customer access</h2>
+            <Link href="/pilot/sign-in" className="mt-3 block text-teal-700">
+              Sign in with email and password →
+            </Link>
             <p className="mt-3 text-slate-600">
               Enter the time-limited code provided by PCL Imports. Contact the
               team if you need a new code.
