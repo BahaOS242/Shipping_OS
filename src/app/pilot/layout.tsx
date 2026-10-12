@@ -1,9 +1,15 @@
 import { PilotShell } from "@/components/pilot/PilotShell";
 import "./pilot.css";
+import "./island-theme.css";
+import { PilotAppearance } from "@/components/pilot/PilotAppearance";
 export default function PilotLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <PilotShell>{children}</PilotShell>;
+  return (
+    <PilotAppearance>
+      <PilotShell>{children}</PilotShell>
+    </PilotAppearance>
+  );
 }

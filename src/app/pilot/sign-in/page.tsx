@@ -1,4 +1,5 @@
 "use client";
+import { AppearanceToggle } from "@/components/pilot/PilotAppearance";
 import Link from "next/link";
 import "./island-modern.css";
 import { useRouter } from "next/navigation";
@@ -22,6 +23,7 @@ export default function SignIn() {
             <span className="island-monogram">PCL</span>
             <span>PCL Imports</span>
           </Link>
+          <AppearanceToggle />
           <a href="mailto:service@pclimports.com" className="island-help">
             Need a hand? ↗
           </a>

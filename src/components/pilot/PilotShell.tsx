@@ -1,4 +1,5 @@
 "use client";
+import { AppearanceToggle } from "./PilotAppearance";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoMark } from "@/components/ui/Logo";
@@ -45,7 +46,7 @@ export function PilotShell({ children }: { children: React.ReactNode }) {
             aria-label="Shipping OS pilot home"
           >
             <LogoMark className="h-9 w-9" />
-            <span>SHIPPING OS</span>
+            <span>PCL Imports</span>
           </Link>
           <nav aria-label="Pilot navigation">
             {links.map(([label, href]) => (
@@ -58,6 +59,7 @@ export function PilotShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
+          <AppearanceToggle />
           <Link
             className="pilot-account-link"
             href={customer ? "/pilot/account" : "/pilot/operations"}
@@ -72,7 +74,7 @@ export function PilotShell({ children }: { children: React.ReactNode }) {
         <div>
           <div className="pilot-brand">
             <LogoMark className="h-8 w-8" />
-            <span>SHIPPING OS</span>
+            <span>PCL Imports</span>
           </div>
           <p>From checkout to your doorstep. We handle the rest.</p>
           <p className="pilot-footer-note">

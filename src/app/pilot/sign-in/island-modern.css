@@ -1,7 +1,7 @@
 .island-login {
   min-height: 100vh;
-  background: #eaf4f1;
-  color: #173d3b;
+  background: var(--island-bg);
+  color: var(--island-text);
   padding: 32px 40px;
   font-family: var(--font-sans), Arial, sans-serif;
 }
@@ -26,7 +26,7 @@
   font-weight: 800;
   letter-spacing: -0.6px;
   text-decoration: none;
-  color: #195c57;
+  color: var(--island-accent);
 }
 .island-monogram {
   height: 48px;
@@ -41,7 +41,7 @@
 }
 .island-help {
   font-size: 14px;
-  color: #285b54;
+  color: var(--island-text);
   text-underline-offset: 5px;
   text-decoration: underline;
 }
@@ -69,17 +69,17 @@
   margin: 28px 0 24px;
 }
 .island-intro h1 span {
-  color: #12826e;
+  color: var(--island-accent);
 }
 .island-description {
   max-width: 410px;
   font-size: 16px;
   line-height: 1.8;
-  color: #52716a;
+  color: var(--island-muted);
 }
 .island-card {
-  background: #fff;
-  border: 1px solid #dfece5;
+  background: var(--island-panel);
+  border: 1px solid var(--island-line);
   padding: 40px;
   border-radius: 28px;
   box-shadow: 0 22px 60px #275e4d0d;
@@ -94,27 +94,27 @@
 }
 .island-card-description {
   font-size: 14px;
-  color: #647770;
+  color: var(--island-muted);
   line-height: 1.7;
   margin-bottom: 22px;
 }
 .island-form label {
   font-size: 13px;
   font-weight: 600;
-  color: #274a42;
+  color: var(--island-text);
 }
 .island-form input {
-  background: #f7faf8;
-  border: 1px solid #dbe5df;
+  background: var(--island-field);
+  border: 1px solid var(--island-line);
   border-radius: 12px;
   font-size: 16px;
   padding: 15px;
-  color: #23483f;
+  color: var(--island-text);
 }
 .island-company {
   font-size: 12px;
-  color: #61756c;
-  border-bottom: 1px solid #e9eee9;
+  color: var(--island-muted);
+  border-bottom: 1px solid var(--island-line);
   padding-bottom: 15px;
   margin-bottom: 22px;
 }
@@ -134,7 +134,7 @@
   padding: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #476358;
+  color: var(--island-muted);
   background: transparent;
   border: none;
 }
@@ -142,7 +142,7 @@
   display: block;
   text-align: right;
   font-size: 12px;
-  color: #24715f;
+  color: var(--island-accent);
   margin-top: 12px;
   text-underline-offset: 4px;
 }
@@ -152,14 +152,14 @@
   padding: 17px 20px;
   border: 0;
   border-radius: 12px;
-  background: #087b68;
-  color: #fff;
+  background: var(--island-accent);
+  color: var(--island-on-accent);
   font-size: 14px;
   font-weight: 700;
   transition: background 0.15s;
 }
 .island-submit:hover {
-  background: #086b5b;
+  background: var(--island-accent-hover);
 }
 .island-submit:disabled {
   opacity: 0.6;
@@ -167,18 +167,18 @@
 .island-card-footer {
   margin-top: 27px;
   padding-top: 24px;
-  border-top: 1px solid #e5ece6;
+  border-top: 1px solid var(--island-line);
 }
 .island-switch {
   font-size: 14px;
-  color: #18715d;
+  color: var(--island-accent);
   text-decoration: underline;
   text-underline-offset: 4px;
   font-weight: 600;
 }
 .island-recovery-note {
   font-size: 12px;
-  color: #6b7b72;
+  color: var(--island-muted);
   line-height: 1.7;
   margin-top: 17px;
 }
@@ -186,7 +186,7 @@
   display: block;
   margin-top: 15px;
   font-size: 12px;
-  color: #24725e;
+  color: var(--island-accent);
 }
 .island-illustration {
   height: 220px;
@@ -241,7 +241,7 @@
   flex-wrap: wrap;
   gap: 10px 20px;
   font-size: 12px;
-  color: #407e6a;
+  color: var(--island-accent);
 }
 .island-benefits span:before {
   content: "✓";
@@ -251,7 +251,7 @@
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  color: #6e8378;
+  color: var(--island-muted);
   font-size: 12px;
   padding-top: 16px;
   padding-bottom: 12px;
@@ -313,4 +313,11 @@
   .island-submit {
     transition: none;
   }
+}
+
+.island-header {
+  flex-wrap: wrap;
+}
+.island-header .pilot-theme-toggle {
+  margin-left: auto;
 }
