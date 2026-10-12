@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hashToken, PilotError, withStaff } from "@/server/pilot";
+import { hashToken, PilotError, withOperator } from "@/server/pilot";
 import {
   cookieName,
   failure,
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const body = await readBody(request);
     if (!body || typeof body.token !== "string")
       throw new PilotError(400, "Enter a staff access code.");
-    const staff = await withStaff(body.token, async (_db, s) => s);
+    const staff = await withOperator(body.token, async (_db, s) => s);
     const response = NextResponse.json({ name: staff.name });
     response.cookies.set(cookieName, body.token, {
       httpOnly: true,
@@ -34,7 +34,7 @@ export async function DELETE(request: Request) {
     const token = await sessionToken();
     if (token) {
       try {
-        await withStaff(token, (db) =>
+        await withOperator(token, (db) =>
           db.query("DELETE FROM staff_sessions WHERE token_hash=$1", [
             hashToken(token),
           ]),

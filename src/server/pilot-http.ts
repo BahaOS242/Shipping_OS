@@ -48,7 +48,8 @@ export function failure(error: unknown) {
   if ((error as { code?: string })?.code === "23505")
     return NextResponse.json(
       {
-        error: "This tracking number was just received. Refresh the inventory.",
+        error:
+          "A record with these details already exists. Refresh and try again.",
       },
       { status: 409 },
     );

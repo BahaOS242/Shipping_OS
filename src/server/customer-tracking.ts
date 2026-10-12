@@ -28,7 +28,7 @@ export async function withCustomer<T>(
       [s.organization_id, s.customer_id],
     );
     const profile = await db.query(
-      "SELECT c.display_name,o.name AS organization_name FROM customers c JOIN organizations o ON o.id=c.organization_id WHERE c.organization_id=$1 AND c.id=$2",
+      "SELECT c.display_name,o.name AS organization_name FROM customers c JOIN organizations o ON o.id=c.organization_id WHERE c.organization_id=$1 AND c.id=$2 AND c.archived_at IS NULL",
       [s.organization_id, s.customer_id],
     );
     if (!profile.rowCount)

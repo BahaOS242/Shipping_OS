@@ -10,7 +10,7 @@ async function main() {
   const db = new Pool({ connectionString: process.env.ADMIN_DATABASE_URL });
   try {
     const member = await db.query(
-      "SELECT role FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role IN ('owner','admin','manager','warehouse')",
+      "SELECT role FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role IN ('owner','admin','manager','warehouse','customs','accounting','support','driver')",
       [organizationId, userId],
     );
     if (!member.rowCount)

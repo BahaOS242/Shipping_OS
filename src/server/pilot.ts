@@ -52,7 +52,7 @@ export async function withTokenTransaction<T>(
       hashToken(token),
     ]);
     await db.query(
-      "SELECT set_config('app.organization_id','',true), set_config('app.user_id','',true), set_config('app.customer_id','',true),set_config('app.actor_type','',true)",
+      "SELECT set_config('app.organization_id','',true), set_config('app.user_id','',true), set_config('app.customer_id','',true),set_config('app.actor_type','',true),set_config('app.staff_role','',true),set_config('app.login_email','',true),set_config('app.login_slug','',true),set_config('app.identity_authenticated','',true)",
     );
     const result = await work(db, token);
     await db.query("COMMIT");
@@ -64,7 +64,7 @@ export async function withTokenTransaction<T>(
     db.release();
   }
 }
-export async function withStaff<T>(
+export async function withOperator<T>(
   token: string | undefined,
   work: (db: PoolClient, staff: Staff) => Promise<T>,
 ): Promise<T> {
@@ -89,11 +89,33 @@ export async function withStaff<T>(
     );
     if (
       !member.rowCount ||
-      !["owner", "admin", "manager", "warehouse"].includes(member.rows[0].role)
+      ![
+        "owner",
+        "admin",
+        "manager",
+        "warehouse",
+        "customs",
+        "accounting",
+        "support",
+        "driver",
+      ].includes(member.rows[0].role)
     )
-      throw new PilotError(403, "Warehouse staff access is required.");
-    await db.query("SELECT set_config('app.actor_type','staff',true)");
+      throw new PilotError(403, "Staff access is required.");
+    await db.query(
+      "SELECT set_config('app.actor_type','staff',true),set_config('app.staff_role',$1,true)",
+      [member.rows[0].role],
+    );
     return work(db, { ...s, ...member.rows[0] });
+  });
+}
+export async function withStaff<T>(
+  token: string | undefined,
+  work: (db: PoolClient, staff: Staff) => Promise<T>,
+): Promise<T> {
+  return withOperator(token, async (db, s) => {
+    if (!["owner", "admin", "manager", "warehouse"].includes(s.role))
+      throw new PilotError(403, "Warehouse staff access is required.");
+    return work(db, s);
   });
 }
 export type Intake = {
@@ -191,7 +213,7 @@ export async function receive(
     );
   if (operation.status === "completed") return operation.result;
   const customer = await db.query(
-    "SELECT id FROM customers WHERE organization_id=$1 AND id=$2",
+    "SELECT id FROM customers WHERE organization_id=$1 AND id=$2 AND archived_at IS NULL",
     [tenant, input.customerId],
   );
   if (!customer.rowCount)
@@ -250,6 +272,14 @@ export async function receive(
   await db.query(
     "UPDATE operation_requests SET status='completed',result=$3,updated_at=now() WHERE organization_id=$1 AND idempotency_key=$2",
     [tenant, key, JSON.stringify(pkg)],
+  );
+  const { notify } = await import("./operations");
+  await notify(
+    db,
+    tenant,
+    input.customerId,
+    "Package received",
+    "Your package " + input.trackingNumber + " has arrived at our warehouse.",
   );
   return pkg;
 }

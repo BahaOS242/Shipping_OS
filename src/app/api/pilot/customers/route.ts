@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { withStaff } from "@/server/pilot";
+import { withStaff, withOperator } from "@/server/pilot";
 import {
   createCustomer,
   listCustomers,
@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
-    const data = await withStaff(await sessionToken(), (db, s) =>
+    const data = await withOperator(await sessionToken(), (db, s) =>
       listCustomers(db, s, params.get("q") ?? "", params.get("cursor")),
     );
     return NextResponse.json(data, {

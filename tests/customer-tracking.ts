@@ -127,7 +127,7 @@ async function main() {
       () =>
         withCustomer(tokens[0], (db) =>
           db.query(
-            "INSERT INTO packages(organization_id,customer_id,tracking_number) VALUES($1,$2,'FORGED')",
+            "INSERT INTO packages(organization_id,customer_id,tracking_number,status) VALUES($1,$2,'FORGED','received')",
             [org[0], cus[0]],
           ),
         ),

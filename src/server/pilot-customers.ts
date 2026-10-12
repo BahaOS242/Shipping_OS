@@ -70,7 +70,7 @@ export async function listCustomers(
   }
   const search = "%" + q.trim().replace(/[\\%_]/g, "\\$&") + "%";
   const result = await db.query(
-    "SELECT id,display_name,email,phone,lower(display_name) AS sort_name FROM customers WHERE organization_id=$1 AND (display_name ILIKE $2 OR email ILIKE $2 OR phone ILIKE $2) AND ($3::text IS NULL OR (lower(display_name),id)>($3::text,$4::uuid)) ORDER BY lower(display_name),id LIMIT 26",
+    "SELECT id,display_name,email,phone,lower(display_name) AS sort_name FROM customers WHERE organization_id=$1 AND archived_at IS NULL AND (display_name ILIKE $2 OR email ILIKE $2 OR phone ILIKE $2) AND ($3::text IS NULL OR (lower(display_name),id)>($3::text,$4::uuid)) ORDER BY lower(display_name),id LIMIT 26",
     [staff.organization_id, search, after?.name ?? null, after?.id ?? null],
   );
   const page = result.rows.slice(0, 25),
