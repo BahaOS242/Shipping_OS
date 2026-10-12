@@ -13,7 +13,8 @@ decision is simulated. No real transactions happen.
 
 ## PostgreSQL pilot
 
-A separate staff intake workspace is available at `/pilot`. See [PILOT.md](PILOT.md)
+Separate staff intake and customer tracking workspaces are available at `/pilot`
+and `/pilot/tracking`. See [PILOT.md](PILOT.md)
 for database setup, restricted credentials, staff provisioning and verification.
 The remaining application routes continue to use the demo store.
 

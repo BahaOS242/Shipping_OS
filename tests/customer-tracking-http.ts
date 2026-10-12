@@ -1,0 +1,184 @@
+import assert from "node:assert/strict";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
+import { Pool } from "pg";
+async function main() {
+  if (
+    process.env.PILOT_TEST_DISPOSABLE !== "yes" ||
+    !process.env.ADMIN_DATABASE_URL ||
+    !process.env.PILOT_TEST_ORIGIN
+  )
+    throw new Error("Disposable test database and test origin required.");
+  const origin = process.env.PILOT_TEST_ORIGIN,
+    admin = new Pool({ connectionString: process.env.ADMIN_DATABASE_URL });
+  const org = randomUUID(),
+    customer = randomUUID(),
+    peer = randomUUID();
+  const token = randomBytes(32).toString("hex"),
+    staffToken = randomBytes(32).toString("hex");
+  const hash = (t: string) => createHash("sha256").update(t).digest("hex");
+  const jsonHeaders = { "Content-Type": "application/json", Origin: origin };
+  try {
+    await admin.query(
+      "INSERT INTO organizations(id,name,slug,organization_type) VALUES($1,'PCL tracking HTTP',$2,'warehouse')",
+      [org, "http-track-" + org],
+    );
+    await admin.query(
+      "INSERT INTO customers(organization_id,id,display_name) VALUES($1,$2,'My customer'),($1,$3,'Peer customer')",
+      [org, customer, peer],
+    );
+    await admin.query(
+      "INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,'http-receiver','warehouse')",
+      [org],
+    );
+    await admin.query(
+      "INSERT INTO staff_sessions VALUES($1,$2,'http-receiver',now()+interval '1 hour')",
+      [hash(staffToken), org],
+    );
+    await admin.query(
+      "INSERT INTO customer_sessions VALUES($1,$2,$3,now()+interval '1 hour')",
+      [hash(token), org, customer],
+    );
+    const staffLogin = await fetch(origin + "/api/pilot/session", {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({ token: staffToken }),
+    });
+    assert.equal(staffLogin.status, 200);
+    const staffCookie = staffLogin.headers.get("set-cookie")!.split(";")[0];
+    const intake = await fetch(origin + "/api/pilot/intake", {
+      method: "POST",
+      headers: {
+        ...jsonHeaders,
+        Cookie: staffCookie,
+        "Idempotency-Key": randomUUID(),
+      },
+      body: JSON.stringify({
+        customerId: customer,
+        trackingNumber: "REAL-TRACK-" + randomUUID(),
+        weightKg: 2,
+        lengthCm: 20,
+        widthCm: 10,
+        heightCm: 10,
+      }),
+    });
+    assert.equal(intake.status, 200);
+    const pkg = await intake.json();
+    const peerPkg = (
+      await admin.query(
+        "INSERT INTO packages(organization_id,customer_id,tracking_number) VALUES($1,$2,'PRIVATE-PEER') RETURNING id",
+        [org, peer],
+      )
+    ).rows[0];
+    assert.equal((await fetch(origin + "/api/pilot/tracking")).status, 401);
+    const body = JSON.stringify({ token });
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/customer-session", {
+          method: "POST",
+          headers: { ...jsonHeaders, Origin: "https://wrong.example" },
+          body,
+        })
+      ).status,
+      403,
+    );
+    const login = await fetch(origin + "/api/pilot/customer-session", {
+      method: "POST",
+      headers: jsonHeaders,
+      body,
+    });
+    assert.equal(login.status, 200);
+    const setCookie = login.headers.get("set-cookie")!;
+    assert.match(setCookie, /HttpOnly/i);
+    assert.match(setCookie, /SameSite=strict/i);
+    if (setCookie.startsWith("__Host-")) assert.match(setCookie, /Secure/i);
+    const headers = { ...jsonHeaders, Cookie: setCookie.split(";")[0] };
+    const list = await fetch(origin + "/api/pilot/tracking", { headers });
+    assert.equal(list.status, 200);
+    assert.equal(list.headers.get("cache-control"), "no-store");
+    const data = await list.json();
+    assert.equal(data.packages.length, 1);
+    assert.equal(data.packages[0].id, pkg.id);
+    assert.equal(data.customer, "My customer");
+    const detail = await fetch(
+      origin + "/api/pilot/tracking?packageId=" + pkg.id,
+      { headers },
+    );
+    assert.equal(detail.status, 200);
+    const history = await detail.json();
+    assert.equal(history.events[0].event_type, "package.received");
+    assert.ok(!("actor_user_id" in history.events[0]));
+    assert.ok(!("details" in history.events[0]));
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/tracking?packageId=" + peerPkg.id, {
+          headers,
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (await fetch(origin + "/api/pilot/intake", { headers })).status,
+      401,
+    );
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/tracking", {
+          headers: { Cookie: staffCookie },
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/tracking", {
+          method: "POST",
+          headers,
+          body: "{}",
+        })
+      ).status,
+      405,
+    );
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/customer-session", {
+          method: "DELETE",
+          headers: { ...headers, Origin: "https://wrong.example" },
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/customer-session", {
+          method: "DELETE",
+          headers,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await fetch(origin + "/api/pilot/tracking", { headers })).status,
+      401,
+    );
+    assert.equal(
+      (
+        await fetch(origin + "/api/pilot/customer-session", {
+          method: "POST",
+          headers: jsonHeaders,
+          body,
+        })
+      ).status,
+      401,
+    );
+    assert.equal((await fetch(origin + "/pilot/tracking")).status, 200);
+    console.log(
+      "PASS: customer HTTP intake-to-tracking, secure cookies, customer/warehouse session separation, private history, peer denial, read-only route, origin protection and sign-out revocation.",
+    );
+  } finally {
+    await admin.end();
+  }
+}
+main().catch((e) => {
+  console.error(e);
+  process.exitCode = 1;
+});

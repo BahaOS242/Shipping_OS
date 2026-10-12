@@ -13,7 +13,10 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "pilot:staff": "tsx scripts/provision-staff.ts",
     "test:pilot": "NODE_OPTIONS=--conditions=react-server tsx tests/pilot.ts",
-    "test:pilot:http": "tsx tests/pilot-http.ts"
+    "test:pilot:http": "tsx tests/pilot-http.ts",
+    "pilot:customer": "tsx scripts/provision-customer.ts",
+    "test:tracking": "NODE_OPTIONS=--conditions=react-server tsx tests/customer-tracking.ts",
+    "test:tracking:http": "tsx tests/customer-tracking-http.ts"
   },
   "dependencies": {
     "next": "^16.4.0",

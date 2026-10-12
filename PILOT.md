@@ -74,6 +74,30 @@ The runtime role has no customer/session provisioning privileges and no event
 update/delete privileges. `GET /api/pilot/intake` returns up to 500 customers and
 50 recent packages; search/pagination will be needed for larger pilots.
 
+## Customer tracking
+
+`/pilot/tracking` shows each customer's own packages and receipt history from
+PostgreSQL. Issue an eight-hour private code for an existing customer:
+
+```
+ADMIN_DATABASE_URL='postgresql://…' npm run pilot:customer -- organization-uuid customer-uuid
+```
+
+Share the code securely with that customer. Customer and warehouse sessions use
+separate cookies and session tables. Customer queries enforce both organization
+and customer scope; database row policies permit reads of that customer's profile,
+packages and package events only. Customers cannot mutate packages, read staff
+identities/audit details, or access warehouse intake. Sign-out revokes the code;
+expiry or administrator deletion also ends access. Customer lists show the 50
+latest packages and package details show up to 100 latest history entries.
+
+This is controlled customer access for the pilot. Self-service signup, password
+login, email verification, account recovery and an invitation delivery service
+remain unimplemented. Private codes are bearer credentials; do not send them in
+URL parameters or public channels. Changing warehouse or customer mappings must
+be handled by an administrator. Apply migration 0004 with the corresponding
+server update; it requires an explicit staff/customer transaction context.
+
 ## Verification
 
 ```
@@ -86,6 +110,8 @@ npm run build
 PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='postgresql://…' npm run test:pilot
 # With a running server connected to that same disposable database:
 PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:pilot:http
+PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' DATABASE_URL='postgresql://…' npm run test:tracking
+PILOT_TEST_DISPOSABLE=yes ADMIN_DATABASE_URL='postgresql://…' PILOT_TEST_ORIGIN=http://localhost:3000 npm run test:tracking:http
 ```
 
 Tests create fixtures in the disposable database. Never supply a real database.
@@ -94,7 +120,7 @@ atomic receipt history, duplicate conflicts, tenant-local tracking uniqueness,
 concurrent requests, replay and rollback. HTTP tests check cookie security,
 origin enforcement, login, receiving, inventory and sign-out revocation.
 
-Still outside this slice: customer signup/login and tracking portal, staff SSO/MFA,
+Still outside this slice: self-service customer signup/account recovery, staff SSO/MFA,
 customer administration/import UI, package photos, labels, receiving exceptions,
 notifications/outbox delivery, billing/customs/delivery persistence, production
 hosting and backup/restore validation. Existing demo APIs remain simulated and

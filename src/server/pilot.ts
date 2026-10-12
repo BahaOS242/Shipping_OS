@@ -30,12 +30,12 @@ export type Staff = {
   name: string;
   expires_at: Date;
 };
-export async function withStaff<T>(
+export async function withTokenTransaction<T>(
   token: string | undefined,
-  work: (db: PoolClient, staff: Staff) => Promise<T>,
+  work: (db: PoolClient, verifiedToken: string) => Promise<T>,
 ): Promise<T> {
   if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token))
-    throw new PilotError(401, "Sign in with a valid staff access code.");
+    throw new PilotError(401, "Sign in with a valid access code.");
   const db = await pool().connect();
   try {
     await db.query("BEGIN");
@@ -51,9 +51,27 @@ export async function withStaff<T>(
     await db.query("SELECT set_config('app.session_hash',$1,true)", [
       hashToken(token),
     ]);
+    await db.query(
+      "SELECT set_config('app.organization_id','',true), set_config('app.user_id','',true), set_config('app.customer_id','',true),set_config('app.actor_type','',true)",
+    );
+    const result = await work(db, token);
+    await db.query("COMMIT");
+    return result;
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
+  } finally {
+    db.release();
+  }
+}
+export async function withStaff<T>(
+  token: string | undefined,
+  work: (db: PoolClient, staff: Staff) => Promise<T>,
+): Promise<T> {
+  return withTokenTransaction(token, async (db, verifiedToken) => {
     const session = await db.query(
       "SELECT organization_id, user_id, expires_at FROM staff_sessions WHERE token_hash=$1 AND expires_at > now()",
-      [hashToken(token)],
+      [hashToken(verifiedToken)],
     );
     if (!session.rowCount)
       throw new PilotError(
@@ -74,15 +92,9 @@ export async function withStaff<T>(
       !["owner", "admin", "manager", "warehouse"].includes(member.rows[0].role)
     )
       throw new PilotError(403, "Warehouse staff access is required.");
-    const result = await work(db, { ...s, ...member.rows[0] });
-    await db.query("COMMIT");
-    return result;
-  } catch (error) {
-    await db.query("ROLLBACK");
-    throw error;
-  } finally {
-    db.release();
-  }
+    await db.query("SELECT set_config('app.actor_type','staff',true)");
+    return work(db, { ...s, ...member.rows[0] });
+  });
 }
 export type Intake = {
   customerId: string;
