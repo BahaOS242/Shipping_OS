@@ -117,9 +117,9 @@ export default function Customers() {
           <p className="text-sm font-semibold text-teal-700">
             {data?.organization ?? "PCL Imports"} · STAFF
           </p>
-          <h1 className="mt-2 text-3xl font-bold">Customers</h1>
+          <h1 className="mt-2 text-3xl font-bold">Customer directory</h1>
           <p className="mt-3 text-slate-600">
-            Find an existing customer or add one before receiving their package.
+            Find a customer, contact them, or receive their next package.
           </p>
         </header>
         {message && (
@@ -143,58 +143,61 @@ export default function Customers() {
             </Link>
           </section>
         ) : (
-          <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
-            <form
-              onSubmit={create}
-              className="h-fit rounded-2xl border bg-white p-6"
-            >
-              <h2 className="mb-5 text-xl font-semibold">Add a customer</h2>
-              <label htmlFor="customer-name">Customer name</label>
-              <input
-                id="customer-name"
-                name="displayName"
-                className={input}
-                required
-                maxLength={120}
-                autoComplete="name"
-              />
-              <label htmlFor="customer-email" className="mt-5 block">
-                Email (optional)
-              </label>
-              <input
-                id="customer-email"
-                name="email"
-                type="email"
-                className={input}
-                maxLength={254}
-                autoComplete="email"
-              />
-              <label htmlFor="customer-phone" className="mt-5 block">
-                Phone (optional)
-              </label>
-              <input
-                id="customer-phone"
-                name="phone"
-                type="tel"
-                className={input}
-                placeholder="+12425550123"
-                pattern="\+[1-9][0-9]{6,14}"
-                autoComplete="tel"
-              />
-              <p className="mt-2 text-sm text-slate-500">
-                Include the country code. Use digits without spaces.
-              </p>
-              <button
-                disabled={busy}
-                className="mt-6 w-full rounded-lg bg-teal-700 p-3 font-semibold text-white disabled:opacity-50"
+          <div className="space-y-6">
+            <details className="staff-add-customer">
+              <summary>Add a customer</summary>
+              <form
+                onSubmit={create}
+                className="h-fit rounded-2xl border bg-white p-6"
               >
-                {busy ? "Saving…" : "Save customer"}
-              </button>
-              <p className="mt-3 text-sm text-slate-500">
-                Search first to avoid creating a second record for the same
-                person.
-              </p>
-            </form>
+                <h2 className="mb-5 text-xl font-semibold">Add a customer</h2>
+                <label htmlFor="customer-name">Customer name</label>
+                <input
+                  id="customer-name"
+                  name="displayName"
+                  className={input}
+                  required
+                  maxLength={120}
+                  autoComplete="name"
+                />
+                <label htmlFor="customer-email" className="mt-5 block">
+                  Email (optional)
+                </label>
+                <input
+                  id="customer-email"
+                  name="email"
+                  type="email"
+                  className={input}
+                  maxLength={254}
+                  autoComplete="email"
+                />
+                <label htmlFor="customer-phone" className="mt-5 block">
+                  Phone (optional)
+                </label>
+                <input
+                  id="customer-phone"
+                  name="phone"
+                  type="tel"
+                  className={input}
+                  placeholder="+12425550123"
+                  pattern="\+[1-9][0-9]{6,14}"
+                  autoComplete="tel"
+                />
+                <p className="mt-2 text-sm text-slate-500">
+                  Include the country code. Use digits without spaces.
+                </p>
+                <button
+                  disabled={busy}
+                  className="mt-6 w-full rounded-lg bg-teal-700 p-3 font-semibold text-white disabled:opacity-50"
+                >
+                  {busy ? "Saving…" : "Save customer"}
+                </button>
+                <p className="mt-3 text-sm text-slate-500">
+                  Search first to avoid creating a second record for the same
+                  person.
+                </p>
+              </form>
+            </details>
             <section>
               <form
                 onSubmit={(e) => {
@@ -243,6 +246,44 @@ export default function Customers() {
                     <p className="mt-1 text-slate-600">
                       {c.phone ?? "No phone recorded"}
                     </p>
+                    <div className="mt-4 flex flex-wrap gap-2 staff-contact-actions">
+                      <Link
+                        href={
+                          "/pilot?customer=" +
+                          encodeURIComponent(c.id) +
+                          "&name=" +
+                          encodeURIComponent(c.display_name)
+                        }
+                        className="rounded-lg bg-teal-700 px-4 py-3 text-white"
+                      >
+                        Receive package
+                      </Link>
+                      <Link
+                        href={
+                          "/pilot/operations?tab=Customers&q=" +
+                          encodeURIComponent(c.display_name)
+                        }
+                        className="rounded-lg border px-4 py-3"
+                      >
+                        Manage customer
+                      </Link>
+                      {c.phone && (
+                        <a
+                          href={"tel:" + c.phone}
+                          className="rounded-lg border px-4 py-3"
+                        >
+                          Call
+                        </a>
+                      )}
+                      {c.email && (
+                        <a
+                          href={"mailto:" + c.email}
+                          className="rounded-lg border px-4 py-3"
+                        >
+                          Email
+                        </a>
+                      )}
+                    </div>
                   </article>
                 ))}
               </div>

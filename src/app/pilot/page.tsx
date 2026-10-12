@@ -22,6 +22,7 @@ export default function Pilot() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
+  const [inventoryQuery, setInventoryQuery] = useState("");
   const request = useRef<{ body: string; key: string } | null>(null);
   async function load() {
     const response = await fetch("/api/pilot/intake", { cache: "no-store" });
@@ -37,8 +38,33 @@ export default function Pilot() {
       .then(async (response) => {
         const result = await response.json();
         if (!active) return;
-        if (response.ok) setData(result);
-        else if (response.status !== 401) setMessage(result.error);
+        if (response.ok) {
+          setData(result);
+          const params = new URLSearchParams(window.location.search);
+          const id = params.get("customer");
+          if (id) {
+            const existing = result.customers.find(
+              (c: CustomerOption) => c.id === id,
+            );
+            if (existing) setCustomer(existing);
+            else {
+              const lookup = await fetch(
+                "/api/pilot/customers?q=" +
+                  encodeURIComponent(params.get("name") ?? ""),
+                { cache: "no-store" },
+              );
+              if (lookup.ok && active) {
+                const matches = await lookup.json();
+                if (active)
+                  setCustomer(
+                    matches.customers.find(
+                      (c: CustomerOption) => c.id === id,
+                    ) ?? null,
+                  );
+              }
+            }
+          }
+        } else if (response.status !== 401) setMessage(result.error);
         setReady(true);
       })
       .catch(() => {
@@ -128,18 +154,16 @@ export default function Pilot() {
           href="/pilot/operations"
           className="mb-5 block font-semibold text-teal-700"
         >
-          Open full operations workspace →
+          ← Warehouse dashboard
         </Link>
-        <header className="mb-8 flex items-center justify-between gap-4">
+        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-teal-700">
-              SHIPPING OS · LIVE PILOT
+              PCL IMPORTS · WAREHOUSE
             </p>
-            <h1 className="mt-2 text-3xl font-bold">
-              {data?.organization ?? "PCL Imports"} warehouse
-            </h1>
+            <h1 className="mt-2 text-3xl font-bold">Receive a package</h1>
             <p className="mt-2 text-slate-600">
-              Receive packages and confirm every arrival.
+              Three quick steps. Every arrival saved securely.
             </p>
           </div>
           {data && (
@@ -204,9 +228,10 @@ export default function Pilot() {
             </button>
           </form>
         ) : (
-          <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
+          <div className="staff-intake">
             <form onSubmit={intake} className="rounded-2xl border bg-white p-6">
               <h2 className="mb-5 text-xl font-semibold">Receive a package</h2>
+              <p className="staff-step">1 · Choose the customer</p>
               <CustomerPicker
                 initialCustomers={data.customers}
                 value={customer}
@@ -219,7 +244,7 @@ export default function Pilot() {
                 Add or manage customers →
               </Link>
               <label className="mt-5 block">
-                Tracking number
+                2 · Scan or type the tracking number
                 <input
                   name="trackingNumber"
                   className={input}
@@ -229,7 +254,8 @@ export default function Pilot() {
                   placeholder="Scan or type tracking number"
                 />
               </label>
-              <div className="mt-5 grid grid-cols-2 gap-4">
+              <p className="staff-step mt-6">3 · Measure the package</p>
+              <div className="mt-3 grid grid-cols-2 gap-4">
                 {[
                   ["weightKg", "Weight (kg)", "0.001"],
                   ["lengthCm", "Length (cm)", "0.01"],
@@ -254,16 +280,31 @@ export default function Pilot() {
                 disabled={busy || !customer}
                 className="mt-6 w-full rounded-lg bg-teal-700 p-3 font-semibold text-white disabled:opacity-50"
               >
-                {busy ? "Saving…" : "Confirm receipt"}
+                {busy ? "Saving…" : "Save received package"}
               </button>
               <p className="mt-3 text-sm text-slate-500">
-                Saves a package record and staff audit history.
+                Check the customer and measurements before saving.
               </p>
             </form>
-            <section>
-              <h2 className="mb-4 text-xl font-semibold">
-                Warehouse inventory
-              </h2>
+            <details className="staff-report">
+              <summary>
+                Recent warehouse packages ({data.packages.length})
+              </summary>
+              <label className="mt-4 block">
+                Find in recent packages
+                <input
+                  className={input}
+                  value={inventoryQuery}
+                  onChange={(e) => setInventoryQuery(e.target.value)}
+                  placeholder="Tracking number or customer"
+                />
+              </label>
+              <Link
+                href="/pilot/operations?tab=Warehouse"
+                className="mt-4 block text-teal-700"
+              >
+                Search the full warehouse →
+              </Link>
               <p className="mb-4 text-sm text-slate-600">
                 50 most recently updated packages
               </p>
@@ -273,27 +314,32 @@ export default function Pilot() {
                     No packages yet. Receive your first arrival.
                   </p>
                 )}
-                {data.packages.map((p) => (
-                  <article
-                    key={p.id}
-                    className="rounded-xl border bg-white p-5"
-                  >
-                    <div className="flex justify-between gap-3">
-                      <strong className="break-all">{p.tracking_number}</strong>
-                      <span className="rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-800">
-                        {p.status}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-slate-600">
-                      {p.display_name} · {p.weight_kg ?? "—"} kg
-                    </p>
-                    <p className="mt-2 break-all text-xs text-slate-400">
-                      {p.id}
-                    </p>
-                  </article>
-                ))}
+                {data.packages
+                  .filter((p) =>
+                    (p.tracking_number + " " + p.display_name)
+                      .toLowerCase()
+                      .includes(inventoryQuery.toLowerCase()),
+                  )
+                  .map((p) => (
+                    <article
+                      key={p.id}
+                      className="rounded-xl border bg-white p-5"
+                    >
+                      <div className="flex justify-between gap-3">
+                        <strong className="break-all">
+                          {p.tracking_number}
+                        </strong>
+                        <span className="rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-800">
+                          {p.status.replaceAll("_", " ")}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-slate-600">
+                        {p.display_name} · {p.weight_kg ?? "—"} kg
+                      </p>
+                    </article>
+                  ))}
               </div>
-            </section>
+            </details>
           </div>
         )}
       </div>

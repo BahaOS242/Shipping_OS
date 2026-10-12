@@ -110,12 +110,24 @@ export default function Operations() {
   const pending = useRef<{ body: string; key: string } | null>(null);
   useEffect(() => {
     let active = true;
-    fetch("/api/pilot/operations", { cache: "no-store" })
+    fetch(
+      "/api/pilot/operations?q=" +
+        encodeURIComponent(
+          new URLSearchParams(window.location.search).get("q") ?? "",
+        ),
+      { cache: "no-store" },
+    )
       .then(async (r) => {
         const result = await r.json();
         if (!active) return;
-        if (r.ok) setData(result);
-        else if (r.status !== 401) setMessage(result.error);
+        if (r.ok) {
+          setData(result);
+          const params = new URLSearchParams(window.location.search);
+          const requested = params.get("tab");
+          if (requested === "Customers" || requested === "Warehouse")
+            setTab(requested);
+          setSearch(params.get("q") ?? "");
+        } else if (r.status !== 401) setMessage(result.error);
         setReady(true);
       })
       .catch(() => {
@@ -361,6 +373,13 @@ export default function Operations() {
   }
   const button =
     "rounded-lg border bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50";
+  const primaryModules = [
+    "Overview",
+    "Warehouse",
+    "Customers",
+    "Shipments",
+    "Billing",
+  ];
   const tabs = [
     "Overview",
     "Registrations",
@@ -388,17 +407,17 @@ export default function Operations() {
             <p className="text-sm font-semibold text-teal-700">
               {data?.organization ?? "PCL Imports"} · OPERATIONS
             </p>
-            <h1 className="mt-2 text-3xl font-bold">Operations workspace</h1>
+            <h1 className="mt-2 text-3xl font-bold">Warehouse & customers</h1>
             <p className="mt-2 text-slate-600">
-              Warehouse, shipping and customer service in one place.
+              Receive packages, help customers, and keep shipping moving.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/pilot" className={button}>
-              Package intake
+              Receive package
             </Link>
             <Link href="/pilot/customers" className={button}>
-              Add customers
+              Customer directory
             </Link>
             {data && (
               <a
@@ -505,11 +524,9 @@ export default function Operations() {
           </form>
         ) : (
           <>
-            <nav
-              aria-label="Operations modules"
-              className="mb-6 flex flex-wrap gap-2"
-            >
+            <nav aria-label="Operations modules" className="staff-simple-nav">
               {tabs
+                .filter((name) => primaryModules.includes(name))
                 .filter((name) =>
                   name === "Registrations" ||
                   name === "Audit" ||
@@ -541,6 +558,46 @@ export default function Operations() {
                     {name}
                   </button>
                 ))}
+              <details className="staff-more">
+                <summary>
+                  {primaryModules.includes(tab) ? "More tools" : tab}
+                </summary>
+                <div className="staff-more-items">
+                  {tabs
+                    .filter((name) => !primaryModules.includes(name))
+                    .filter((name) =>
+                      name === "Registrations" ||
+                      name === "Audit" ||
+                      name === "Notifications" ||
+                      name === "Rates" ||
+                      name === "Voyages"
+                        ? allowed(managers)
+                        : name === "Billing"
+                          ? allowed([...accounting, "support"])
+                          : name === "Procurement"
+                            ? allowed(managers)
+                            : name === "Customs"
+                              ? allowed(reviewers)
+                              : true,
+                    )
+                    .map((name) => (
+                      <button
+                        key={name}
+                        disabled={busy}
+                        aria-current={tab === name ? "page" : undefined}
+                        className={`${button} ${tab === name ? "!bg-teal-700 !text-white" : ""}`}
+                        onClick={() => {
+                          setTab(name);
+                          setPanel(null);
+                          setUploadTarget(null);
+                          setPrivateCode("");
+                        }}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                </div>
+              </details>
             </nav>
             <form
               onSubmit={(e) => {
@@ -557,11 +614,15 @@ export default function Operations() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 maxLength={100}
-                placeholder="Search package tracking, customer name, bin or reference"
+                placeholder={
+                  tab === "Customers"
+                    ? "Find a customer by name, email or phone"
+                    : "Find a package or customer"
+                }
                 className="min-w-0 flex-1 rounded-lg border bg-white p-3"
               />
               <button disabled={busy} className={button}>
-                Search / refresh
+                Find
               </button>
             </form>
             {panel && (
@@ -776,83 +837,70 @@ export default function Operations() {
                     onClick={() => setTab("Customs")}
                   />
                 </div>
-                <h2 className="pilot-section-title">What to do next</h2>
-                <div className="pilot-actions">
+                <h2 className="pilot-section-title">What do you need to do?</h2>
+                <div className="staff-task-grid">
+                  <Link href="/pilot" className="staff-task">
+                    <span aria-hidden>＋</span>
+                    <strong>Receive a package</strong>
+                    <p>Customer, tracking, measurements. Done.</p>
+                  </Link>
+                  <Link href="/pilot/customers" className="staff-task">
+                    <span aria-hidden>↗</span>
+                    <strong>Find a customer</strong>
+                    <p>Search, contact, or update their details.</p>
+                  </Link>
                   <button
-                    className="pilot-action"
+                    className="staff-task"
                     onClick={() => setTab("Warehouse")}
                   >
-                    <span className="pilot-action-icon" aria-hidden>
-                      📦
-                    </span>
-                    <span>
-                      <strong>Keep the warehouse moving</strong>
-                      <p>Assign bins, review holds and prepare packages.</p>
-                    </span>
-                    <span className="pilot-action-arrow">View queue</span>
+                    <span aria-hidden>▣</span>
+                    <strong>Manage packages</strong>
+                    <p>Storage locations, holds, and ready packages.</p>
                   </button>
                   <button
-                    className="pilot-action"
-                    onClick={() => setTab("Customs")}
-                  >
-                    <span className="pilot-action-icon" aria-hidden>
-                      🧾
-                    </span>
-                    <span>
-                      <strong>Check shipping documents</strong>
-                      <p>Review originals before clearing shipments.</p>
-                    </span>
-                    <span className="pilot-action-arrow">Review</span>
-                  </button>
-                </div>
-                <section className="pilot-feature">
-                  <div>
-                    <span className="eyebrow">
-                      🚢 Ready for the next journey
-                    </span>
-                    <h2>From our warehouse to their doorstep.</h2>
-                    <p>
-                      Group ready packages, confirm the route and keep each
-                      customer updated.
-                    </p>
-                  </div>
-                  <button
-                    className="pilot-gold-button"
+                    className="staff-task"
                     onClick={() => setTab("Shipments")}
                   >
-                    Prepare a shipment
+                    <span aria-hidden>→</span>
+                    <strong>Prepare shipping</strong>
+                    <p>Group packages and update shipments.</p>
                   </button>
-                </section>
-                <h2 className="pilot-section-title">Package activity</h2>
-                <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
-                  {data.summary.map((s) => (
-                    <article
-                      key={s.status}
-                      className="rounded-2xl border bg-white p-5"
-                    >
-                      <p className="text-sm text-slate-600">
-                        {s.status.replaceAll("_", " ")}
+                </div>
+                <details className="staff-report">
+                  <summary>View warehouse totals</summary>
+                  <h2 className="pilot-section-title">Package activity</h2>
+                  <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                    {data.summary.map((s) => (
+                      <article
+                        key={s.status}
+                        className="rounded-2xl border bg-white p-5"
+                      >
+                        <p className="text-sm text-slate-600">
+                          {s.status.replaceAll("_", " ")}
+                        </p>
+                        <p className="mt-2 text-3xl font-bold">{s.count}</p>
+                      </article>
+                    ))}
+                  </div>
+                  <div className="mt-6 flex flex-wrap gap-4">
+                    {data.balances.map((b) => (
+                      <p
+                        key={b.currency}
+                        className="rounded-xl border bg-white p-5"
+                      >
+                        Outstanding issued bills:{" "}
+                        <strong>
+                          {money(b.outstanding_cents, b.currency)}
+                        </strong>
                       </p>
-                      <p className="mt-2 text-3xl font-bold">{s.count}</p>
-                    </article>
-                  ))}
-                </div>
-                <div className="mt-6 flex flex-wrap gap-4">
-                  {data.balances.map((b) => (
-                    <p
-                      key={b.currency}
-                      className="rounded-xl border bg-white p-5"
-                    >
-                      Outstanding issued bills:{" "}
-                      <strong>{money(b.outstanding_cents, b.currency)}</strong>
-                    </p>
-                  ))}
-                </div>
-                <p className="mt-6 text-sm text-slate-600">
-                  Operational queues show the latest 100 packages/shipments and
-                  300 records. Search narrows package and customer results.
-                  Financial totals include all issued bills.
-                </p>
+                    ))}
+                  </div>
+                  <p className="mt-6 text-sm text-slate-600">
+                    Operational queues show the latest 100 packages/shipments
+                    and 300 records. Search narrows package and customer
+                    results. Financial totals include all issued bills.
+                  </p>
+                </details>
               </section>
             )}
             {tab === "Registrations" && (
@@ -924,6 +972,19 @@ export default function Operations() {
                       {c.archived_at ? "Archived" : "Active"}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
+                      {!c.archived_at && (
+                        <Link
+                          className={button}
+                          href={
+                            "/pilot?customer=" +
+                            encodeURIComponent(c.id) +
+                            "&name=" +
+                            encodeURIComponent(String(c.display_name))
+                          }
+                        >
+                          Receive package
+                        </Link>
+                      )}
                       {allowed([...warehouse, "support"]) && !c.archived_at && (
                         <button
                           className={button}
@@ -964,74 +1025,82 @@ export default function Operations() {
                         </button>
                       )}
                       {allowed([...managers, "support"]) && !c.archived_at && (
-                        <>
-                          <button
-                            className={button}
-                            disabled={busy}
-                            onClick={() =>
-                              open({
-                                title: "Issue private customer access",
-                                action: "customer.access",
-                                row: c,
-                                note: "This replaces all previous access codes. The new code is shown once and lasts eight hours.",
-                                fields: [
-                                  {
-                                    name: "revoke",
-                                    label:
-                                      "Revoke only (do not issue a replacement)",
-                                    type: "checkbox",
-                                  },
-                                ],
-                              })
-                            }
-                          >
-                            Customer access
-                          </button>
-                        </>
-                      )}
-                      {allowed(managers) && !c.archived_at && (
-                        <>
-                          <button
-                            className={button}
-                            disabled={busy}
-                            onClick={() =>
-                              open({
-                                title: "Archive customer",
-                                action: "customer.archive",
-                                row: c,
-                                note: "This ends customer access and prevents new intake. Existing operational history remains.",
-                                fields: [],
-                              })
-                            }
-                          >
-                            Archive
-                          </button>
-                          <button
-                            className={button}
-                            disabled={busy}
-                            onClick={() =>
-                              open({
-                                title: "Merge customer records",
-                                action: "customer.merge",
-                                row: c,
-                                note: "Packages, shipments, documents and service records move to the target. Source access codes are revoked; its profile is archived.",
-                                fields: [
-                                  {
-                                    name: "targetId",
-                                    label: "Target customer",
-                                    type: "select",
-                                    required: true,
-                                    options: customerOptions.filter(
-                                      (o) => o.value !== c.id,
-                                    ),
-                                  },
-                                ],
-                              })
-                            }
-                          >
-                            Merge
-                          </button>
-                        </>
+                        <details className="staff-more">
+                          <summary>Account tools</summary>
+                          <div className="staff-more-items">
+                            {allowed([...managers, "support"]) &&
+                              !c.archived_at && (
+                                <>
+                                  <button
+                                    className={button}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      open({
+                                        title: "Issue private customer access",
+                                        action: "customer.access",
+                                        row: c,
+                                        note: "This replaces all previous access codes. The new code is shown once and lasts eight hours.",
+                                        fields: [
+                                          {
+                                            name: "revoke",
+                                            label:
+                                              "Revoke only (do not issue a replacement)",
+                                            type: "checkbox",
+                                          },
+                                        ],
+                                      })
+                                    }
+                                  >
+                                    Customer access
+                                  </button>
+                                </>
+                              )}
+                            {allowed(managers) && !c.archived_at && (
+                              <>
+                                <button
+                                  className={button}
+                                  disabled={busy}
+                                  onClick={() =>
+                                    open({
+                                      title: "Archive customer",
+                                      action: "customer.archive",
+                                      row: c,
+                                      note: "This ends customer access and prevents new intake. Existing operational history remains.",
+                                      fields: [],
+                                    })
+                                  }
+                                >
+                                  Archive
+                                </button>
+                                <button
+                                  className={button}
+                                  disabled={busy}
+                                  onClick={() =>
+                                    open({
+                                      title: "Merge customer records",
+                                      action: "customer.merge",
+                                      row: c,
+                                      note: "Packages, shipments, documents and service records move to the target. Source access codes are revoked; its profile is archived.",
+                                      fields: [
+                                        {
+                                          name: "targetId",
+                                          label: "Target customer",
+                                          type: "select",
+                                          required: true,
+                                          options: customerOptions.filter(
+                                            (o) => o.value !== c.id,
+                                          ),
+                                        },
+                                      ],
+                                    })
+                                  }
+                                >
+                                  Merge
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </details>
                       )}
                     </div>
                   </article>

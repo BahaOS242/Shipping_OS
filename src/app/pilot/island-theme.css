@@ -202,3 +202,128 @@
     --island-on-accent: #fff;
   }
 }
+
+/* Staff screens prioritize daily work, with secondary tools kept in place. */
+.pilot-appearance .pilot-ui main .staff-simple-nav {
+  flex-wrap: wrap;
+  overflow: visible;
+  gap: 8px;
+}
+.staff-more {
+  position: relative;
+}
+.staff-more summary,
+.staff-add-customer summary,
+.staff-report summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--island-line);
+  border-radius: 12px;
+  background: var(--island-panel);
+  font-weight: 600;
+  cursor: pointer;
+}
+.staff-more summary::after,
+.staff-add-customer summary::after,
+.staff-report summary::after {
+  content: "＋";
+  margin-left: auto;
+}
+.staff-more[open] summary::after,
+.staff-add-customer[open] summary::after,
+.staff-report[open] summary::after {
+  content: "−";
+}
+.staff-more-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 0;
+}
+.staff-more[open] {
+  width: 100%;
+}
+.staff-task-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.staff-task {
+  background: var(--island-panel);
+  color: var(--island-text);
+  border: 1px solid var(--island-line);
+  border-radius: 20px !important;
+  padding: 22px;
+  text-align: left;
+  min-width: 0;
+}
+.staff-task > span {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--island-soft);
+  color: var(--island-accent);
+  margin-bottom: 14px;
+  font-size: 22px;
+}
+.staff-task strong {
+  display: block;
+  font-size: 18px;
+}
+.staff-task p {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--island-muted);
+}
+.staff-report {
+  margin-top: 24px;
+}
+.staff-report[open] > summary {
+  margin-bottom: 20px;
+}
+.staff-add-customer form {
+  margin-top: 14px;
+  max-width: 600px;
+}
+.staff-intake {
+  max-width: 720px;
+  margin-inline: auto;
+}
+.staff-step {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--island-accent);
+  margin-bottom: 12px;
+}
+.pilot-appearance .pilot-ui main button,
+.staff-contact-actions a {
+  min-height: 44px;
+}
+@media (max-width: 520px) {
+  .staff-task-grid {
+    grid-template-columns: 1fr;
+  }
+  .staff-task {
+    padding: 18px;
+  }
+  .pilot-appearance .pilot-ui main .staff-simple-nav button {
+    flex: 1 0 auto;
+  }
+  .staff-contact-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .staff-contact-actions a {
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .staff-intake > form {
+    padding: 20px;
+  }
+}
