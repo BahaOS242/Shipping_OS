@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { PilotStat } from "@/components/pilot/Dashboard";
 import { useEffect, useRef, useState } from "react";
 type Row = {
   id: string;
@@ -670,6 +671,102 @@ export default function Operations() {
             )}
             {tab === "Overview" && (
               <section>
+                <div className="pilot-stats">
+                  <PilotStat
+                    label="📦 At the warehouse"
+                    value={data.summary
+                      .filter((s) =>
+                        ["received", "processing", "ready"].includes(s.status),
+                      )
+                      .reduce((n, s) => n + s.count, 0)}
+                    detail="Received, processing or ready"
+                    onClick={() => setTab("Warehouse")}
+                  />
+                  <PilotStat
+                    label="🚢 Active shipments"
+                    value={
+                      data.shipments.filter(
+                        (s) =>
+                          !["delivered", "cancelled"].includes(s.status ?? ""),
+                      ).length
+                    }
+                    detail="Preparing or on the way"
+                    onClick={() => setTab("Shipments")}
+                  />
+                  <PilotStat
+                    label="💰 Outstanding bills"
+                    value={
+                      data.balances
+                        .map((b) => money(b.outstanding_cents, b.currency))
+                        .join(" · ") || "$0.00"
+                    }
+                    detail="All issued bill balances"
+                    tone="money"
+                    onClick={() => setTab("Billing")}
+                  />
+                  <PilotStat
+                    label="⚠️ Needs attention"
+                    value={
+                      data.packages.filter((p) => p.hold_reason).length +
+                      data.shipments.filter(
+                        (s) =>
+                          !["cleared"].includes(String(s.customs_status)) &&
+                          !["delivered", "cancelled"].includes(s.status ?? ""),
+                      ).length
+                    }
+                    detail="Holds and customs reviews"
+                    tone="attention"
+                    onClick={() => setTab("Customs")}
+                  />
+                </div>
+                <h2 className="pilot-section-title">What to do next</h2>
+                <div className="pilot-actions">
+                  <button
+                    className="pilot-action"
+                    onClick={() => setTab("Warehouse")}
+                  >
+                    <span className="pilot-action-icon" aria-hidden>
+                      📦
+                    </span>
+                    <span>
+                      <strong>Keep the warehouse moving</strong>
+                      <p>Assign bins, review holds and prepare packages.</p>
+                    </span>
+                    <span className="pilot-action-arrow">View queue</span>
+                  </button>
+                  <button
+                    className="pilot-action"
+                    onClick={() => setTab("Customs")}
+                  >
+                    <span className="pilot-action-icon" aria-hidden>
+                      🧾
+                    </span>
+                    <span>
+                      <strong>Check shipping documents</strong>
+                      <p>Review originals before clearing shipments.</p>
+                    </span>
+                    <span className="pilot-action-arrow">Review</span>
+                  </button>
+                </div>
+                <section className="pilot-feature">
+                  <div>
+                    <span className="eyebrow">
+                      🚢 Ready for the next journey
+                    </span>
+                    <h2>From our warehouse to their doorstep.</h2>
+                    <p>
+                      Group ready packages, confirm the route and keep each
+                      customer updated.
+                    </p>
+                  </div>
+                  <button
+                    className="pilot-gold-button"
+                    onClick={() => setTab("Shipments")}
+                  >
+                    Prepare a shipment
+                  </button>
+                </section>
+                <h2 className="pilot-section-title">Package activity</h2>
                 <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
                   {data.summary.map((s) => (
                     <article

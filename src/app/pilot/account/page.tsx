@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { CustomerDashboard } from "@/components/pilot/Dashboard";
 import { useEffect, useRef, useState } from "react";
 type Row = {
   id: string;
@@ -32,7 +33,7 @@ const labels: Record<string, string> = {
 export default function Account() {
   const [data, setData] = useState<Workspace | null>(null),
     [ready, setReady] = useState(false),
-    [tab, setTab] = useState("Packages"),
+    [tab, setTab] = useState("Dashboard"),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const pending = useRef<{ body: string; key: string } | null>(null);
@@ -114,10 +115,16 @@ export default function Account() {
         <header className="mb-8 flex flex-wrap justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-teal-700">
-              {data?.organization ?? "PCL Imports"} · CUSTOMER ACCOUNT
+              {data
+                ? "Hi " + data.customer.split(" ")[0] + " 👋"
+                : "PCL Imports · CUSTOMER ACCOUNT"}
             </p>
             <h1 className="mt-2 text-3xl font-bold">
-              {data ? "Welcome, " + data.customer : "Your shipping account"}
+              {data
+                ? tab === "Dashboard"
+                  ? "Here’s everything in one place."
+                  : "Welcome, " + data.customer
+                : "Your shipping account"}
             </h1>
           </div>
           <div className="flex gap-2">
@@ -176,6 +183,7 @@ export default function Account() {
               className="mb-6 flex flex-wrap gap-2"
             >
               {[
+                "Dashboard",
                 "Packages",
                 "Shipments",
                 "Bills",
@@ -198,6 +206,9 @@ export default function Account() {
                 </button>
               ))}
             </nav>
+            {tab === "Dashboard" && (
+              <CustomerDashboard data={data} open={setTab} />
+            )}
             {tab === "Packages" && (
               <section>
                 <form
